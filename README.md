@@ -1,4 +1,3 @@
-# MGI_Inventory_Management
 # MGI Inventory Management
 
 A web-based inventory management system built with **ASP.NET (C#)**, designed to streamline product tracking, stock control, and inventory operations.
