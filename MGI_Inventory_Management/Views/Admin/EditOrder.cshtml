@@ -1,0 +1,253 @@
+﻿@model MGI_Inventory_Management.Models.Order
+@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
+        <h4 class="mb-0">Edit Order #@Model.Id</h4>
+    </div>
+
+    @if (TempData["OrderError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["OrderError"]</div>
+    }
+
+    <div class="card p-4 shadow">
+        <form asp-action="EditOrder" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ordered By</label>
+                <input type="text" name="orderedBy" class="form-control"
+                       value="@Model.OrderedBy" required />
+            </div>
+
+            <!-- ORDER ITEMS -->
+            <div id="orderItems">
+                @for (int i = 0; i < Model.Items.Count; i++)
+                {
+                    var orderItem = Model.Items.ElementAt(i);
+                    <div class="order-item border rounded p-3 mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Category</label>
+                                <select name="categoryIds" class="form-select category-dropdown" required>
+                                    <option value="">-- Select Category --</option>
+                                    @foreach (var cat in ViewBag.Categories)
+                                    {
+                                        if (cat.Id == orderItem.CategoryId)
+                                        {
+                                            <option value="@cat.Id" selected>@cat.Name</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@cat.Id">@cat.Name</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Product</label>
+                                <select name="productNames" class="form-select product-dropdown" required>
+                                    <option value="@orderItem.ProductName" selected>@orderItem.ProductName</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Quantity</label>
+                                <input type="number" name="quantities" class="form-control quantity-input"
+                                       min="1" value="@orderItem.Quantity" required />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Unit Price</label>
+                                <input type="text" class="form-control unit-price" readonly
+                                       value="@orderItem.SellingPrice.ToString("0.00")" />
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-bold">Total</label>
+                                <input type="text" class="form-control item-total" readonly
+                                       value="@((orderItem.SellingPrice * orderItem.Quantity).ToString("0.00"))" />
+                            </div>
+                        </div>
+                        @if (i > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-danger mt-2 remove-btn">Remove</button>
+                        }
+                    </div>
+                }
+            </div>
+
+            <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
+                + Add Another Product
+            </button>
+
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <h5>Grand Total: <span id="grandTotal" style="color:#00aaff;">0.00</span> BDT</h5>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn text-white px-4" style="background:#00aaff;">
+                        Update Order
+                    </button>
+                    <a asp-controller="Admin" asp-action="OrderRequest" class="btn btn-outline-secondary px-4">
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Build category list for AJAX dropdowns
+        var categories = @Html.Raw(
+                    System.Text.Json.JsonSerializer.Serialize(
+                            ((IEnumerable<dynamic>)ViewBag.Categories)
+                                    .Select(c => new { id = (int)c.Id, name = (string)c.Name })
+                    )
+            );
+
+        function updateGrandTotal() {
+            var total = 0;
+            document.querySelectorAll('.item-total').forEach(function (el) {
+                total += parseFloat(el.value) || 0;
+            });
+            document.getElementById('grandTotal').textContent = total.toFixed(2);
+        }
+
+        function attachEvents(item) {
+            var catDropdown     = item.querySelector('.category-dropdown');
+            var productDropdown = item.querySelector('.product-dropdown');
+            var quantityInput   = item.querySelector('.quantity-input');
+            var unitPriceInput  = item.querySelector('.unit-price');
+            var itemTotalInput  = item.querySelector('.item-total');
+
+            // Load products when category changes
+            catDropdown.addEventListener('change', function () {
+                var categoryId = this.value;
+                productDropdown.innerHTML = '<option value="">Loading...</option>';
+                unitPriceInput.value = '0.00';
+                itemTotalInput.value = '0.00';
+                updateGrandTotal();
+
+                if (!categoryId) {
+                    productDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+                    return;
+                }
+
+                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!data || data.length === 0) {
+                            productDropdown.innerHTML = '<option value="">No products available</option>';
+                        } else {
+                            productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
+                            data.forEach(function (p) {
+                                var opt = document.createElement('option');
+                                opt.value = p.productName;
+                                opt.text  = p.productName;
+                                productDropdown.appendChild(opt);
+                            });
+                        }
+                    });
+            });
+
+            // Load selling price when product changes
+            productDropdown.addEventListener('change', function () {
+                var productName = this.value;
+                var categoryId  = catDropdown.value;
+
+                if (!productName || !categoryId) {
+                    unitPriceInput.value = '0.00';
+                    itemTotalInput.value = '0.00';
+                    updateGrandTotal();
+                    return;
+                }
+
+                fetch('/Admin/GetSellingPrice?productName=' + encodeURIComponent(productName)
+                      + '&categoryId=' + encodeURIComponent(categoryId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var price = parseFloat(data.price) || 0;
+                        unitPriceInput.value = price.toFixed(2);
+                        var qty = parseInt(quantityInput.value) || 1;
+                        itemTotalInput.value = (price * qty).toFixed(2);
+                        updateGrandTotal();
+                    });
+            });
+
+            // Recalculate row total when quantity changes
+            quantityInput.addEventListener('input', function () {
+                var price = parseFloat(unitPriceInput.value) || 0;
+                var qty   = parseInt(this.value) || 0;
+                itemTotalInput.value = (price * qty).toFixed(2);
+                updateGrandTotal();
+            });
+
+            // Remove row button
+            var removeBtn = item.querySelector('.remove-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function () {
+                    item.remove();
+                    updateGrandTotal();
+                });
+            }
+        }
+
+        // Attach events to all existing rows and trigger category load for each
+        document.querySelectorAll('.order-item').forEach(function (item) {
+            attachEvents(item);
+
+            // Pre-load the product dropdown for the already-selected category
+            var catDropdown     = item.querySelector('.category-dropdown');
+            var productDropdown = item.querySelector('.product-dropdown');
+            var selectedProduct = productDropdown.options[0]?.value;
+            var categoryId      = catDropdown.value;
+
+            if (categoryId && selectedProduct) {
+                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
+                        data.forEach(function (p) {
+                            var opt      = document.createElement('option');
+                            opt.value    = p.productName;
+                            opt.text     = p.productName;
+                            opt.selected = (p.productName === selectedProduct);
+                            productDropdown.appendChild(opt);
+                        });
+                        updateGrandTotal();
+                    });
+            }
+        });
+
+        // Initialise grand total from existing rows
+        updateGrandTotal();
+
+        // Add new product row (clone first row template)
+        document.getElementById('addItemBtn').addEventListener('click', function () {
+            var container = document.getElementById('orderItems');
+            var first     = document.querySelector('.order-item');
+            var clone     = first.cloneNode(true);
+
+            // Reset cloned fields
+            clone.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+            clone.querySelectorAll('input').forEach(function (inp) {
+                if (inp.classList.contains('quantity-input')) inp.value = '1';
+                else inp.value = '0.00';
+            });
+            clone.querySelector('.product-dropdown').innerHTML =
+                '<option value="">-- Select Category First --</option>';
+
+            // Ensure remove button exists on clone
+            var removeBtn = clone.querySelector('.remove-btn');
+            if (!removeBtn) {
+                removeBtn = document.createElement('button');
+                removeBtn.type      = 'button';
+                removeBtn.className = 'btn btn-sm btn-danger mt-2 remove-btn';
+                removeBtn.textContent = 'Remove';
+                clone.appendChild(removeBtn);
+            }
+
+            container.appendChild(clone);
+            attachEvents(clone);
+        });
+    </script>
+}

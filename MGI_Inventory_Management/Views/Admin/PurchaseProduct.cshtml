@@ -1,0 +1,222 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff">
+        <h4 class="mb-0">Make Purchase</h4>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="card p-4 shadow">
+        <form asp-action="PurchaseProduct" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Purchased By</label>
+                <input type="text" name="purchasedBy" class="form-control"
+                       placeholder="Enter your name" required />
+            </div>
+
+            <div id="purchaseItems">
+                <div class="purchase-item border rounded p-3 mb-3">
+                    <div class="row g-3">
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Category</label>
+                            <select name="categoryIds" class="form-select category-dropdown" required>
+                                <option value="">-- Select Category --</option>
+                                @foreach (var cat in ViewBag.Categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Product</label>
+                            <select name="productNames" class="form-select product-dropdown" required>
+                                <option value="">-- Select Category First --</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Quantity</label>
+                            <input type="number" name="quantities"
+                                   class="form-control quantity-input"
+                                   min="1" value="1" required />
+                        </div>
+
+                        <!-- EDITABLE unit price — user types purchase price -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Unit Price (BDT)</label>
+                            <input type="number" name="purchasePrices"
+                                   class="form-control unit-price"
+                                   step="0.01" min="0" value="0" required />
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Total (BDT)</label>
+                            <input type="text" class="form-control item-total"
+                                   readonly value="0.00" />
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
+                + Add Another Product
+            </button>
+
+            <hr />
+
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <h5 class="mb-0">
+                    Grand Total:
+                    <span id="grandTotal" class="fw-bold" style="color:#00aaff;">0.00</span>
+                    <span class="text-muted" style="font-size:0.9rem;">BDT</span>
+                </h5>
+                <button type="submit" class="btn btn-primary px-4">
+                    Place Purchase Request
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+
+        function updateGrandTotal() {
+            var total = 0;
+            document.querySelectorAll('.item-total').forEach(function (el) {
+                total += parseFloat(el.value) || 0;
+            });
+            document.getElementById('grandTotal').textContent = total.toFixed(2);
+        }
+
+        function attachEvents(item) {
+            var catDropdown     = item.querySelector('.category-dropdown');
+            var productDropdown = item.querySelector('.product-dropdown');
+            var quantityInput   = item.querySelector('.quantity-input');
+            var unitPriceInput  = item.querySelector('.unit-price');
+            var itemTotalInput  = item.querySelector('.item-total');
+
+            // Recalculate row total whenever price or qty changes
+            function recalcTotal() {
+                var price = parseFloat(unitPriceInput.value) || 0;
+                var qty   = parseInt(quantityInput.value) || 0;
+                itemTotalInput.value = (price * qty).toFixed(2);
+                updateGrandTotal();
+            }
+
+            // Category change → load products
+            catDropdown.addEventListener('change', function () {
+                var categoryId = this.value;
+
+                productDropdown.innerHTML = '<option value="">Loading...</option>';
+                unitPriceInput.value = '0';
+                itemTotalInput.value = '0.00';
+                updateGrandTotal();
+
+                if (!categoryId) {
+                    productDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+                    return;
+                }
+
+                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.length === 0) {
+                            productDropdown.innerHTML = '<option value="">No products found</option>';
+                        } else {
+                            productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
+                            data.forEach(function (p) {
+                                var opt = document.createElement('option');
+                                opt.value = p.productName;
+                                opt.text  = p.productName;
+                                productDropdown.appendChild(opt);
+                            });
+                        }
+                    })
+                    .catch(() => {
+                        productDropdown.innerHTML = '<option value="">Error loading</option>';
+                    });
+            });
+
+            // Product change → suggest last purchase rate (user can override)
+            productDropdown.addEventListener('change', function () {
+                var productName = this.value;
+                var categoryId  = catDropdown.value;
+
+                if (!productName || !categoryId) {
+                    unitPriceInput.value = '0';
+                    itemTotalInput.value = '0.00';
+                    updateGrandTotal();
+                    return;
+                }
+
+                // Fetch last known purchase rate as a suggestion
+                fetch('/Admin/GetPurchaseRate?productName='
+                      + encodeURIComponent(productName)
+                      + '&categoryId=' + categoryId)
+                    .then(r => r.json())
+                    .then(data => {
+                        var price = parseFloat(data.price) || 0;
+                        unitPriceInput.value = price;
+                        recalcTotal();
+                    })
+                    .catch(() => {
+                        unitPriceInput.value = '0';
+                        recalcTotal();
+                    });
+            });
+
+            // Price or quantity change → recalc
+            unitPriceInput.addEventListener('input', recalcTotal);
+            quantityInput.addEventListener('input', recalcTotal);
+        }
+
+        // Init first row
+        attachEvents(document.querySelector('.purchase-item'));
+
+        // Add new row
+        document.getElementById('addItemBtn').addEventListener('click', function () {
+            var container = document.getElementById('purchaseItems');
+            var first     = document.querySelector('.purchase-item');
+            var clone     = first.cloneNode(true);
+
+            clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+            clone.querySelectorAll('input').forEach(function (inp) {
+                if (inp.classList.contains('quantity-input')) inp.value = '1';
+                else if (inp.classList.contains('unit-price')) inp.value = '0';
+                else inp.value = '0.00';
+            });
+            clone.querySelector('.product-dropdown').innerHTML =
+                '<option value="">-- Select Category First --</option>';
+
+            var removeBtn = document.createElement('button');
+            removeBtn.type        = 'button';
+            removeBtn.className   = 'btn btn-sm btn-danger mt-2';
+            removeBtn.textContent = '✕ Remove';
+            removeBtn.addEventListener('click', function () {
+                clone.remove();
+                updateGrandTotal();
+            });
+            clone.appendChild(removeBtn);
+
+            container.appendChild(clone);
+            attachEvents(clone);
+        });
+
+    </script>
+}

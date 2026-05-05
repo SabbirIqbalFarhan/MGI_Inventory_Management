@@ -1,0 +1,161 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
+        <h4 class="mb-0">Order Requests</h4>
+    </div>
+
+    @if (TempData["OrderSuccess"] != null)
+    {
+        <div class="alert alert-success">@TempData["OrderSuccess"]</div>
+    }
+    @if (TempData["OrderError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["OrderError"]</div>
+    }
+
+    <div class="text-end mb-3">
+        <a asp-action="Order" class="btn btn-primary">+ Make New Order</a>
+    </div>
+
+    @if (ViewBag.Orders != null && ((IEnumerable<dynamic>)ViewBag.Orders).Any())
+    {
+        @foreach (var order in ViewBag.Orders)
+        {
+            <div class="card shadow mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center"
+                     style="background:#f0f8ff;">
+                    <div>
+                        <strong>Order #@order.Id</strong> &nbsp;|&nbsp;
+                        <span>@order.OrderedBy</span> &nbsp;|&nbsp;
+                        <span>@order.OrderDate.ToString("dd MMM yyyy hh:mm tt")</span>
+                    </div>
+                    <div>
+                        @if (order.Status == "Pending")
+                        {
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        }
+                        else if (order.Status == "Approved")
+                        {
+                            <span class="badge bg-success">Approved</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">Delivered</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Category</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int s = 1;
+                            }
+                            @foreach (var item in order.Items)
+                            {
+                                <tr>
+                                    <td>@s</td>
+                                    <td>@item.Category?.Name</td>
+                                    <td>@item.ProductName</td>
+                                    <td>@item.Quantity</td>
+                                    <td>@item.SellingPrice.ToString("F2")</td>
+                                    <td>@((item.Quantity * item.SellingPrice).ToString("F2"))</td>
+                                </tr>
+                                s++;
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold">Grand Total:</td>
+                                <td class="fw-bold" style="color:#00aaff;">
+                                    @((order.Items as IEnumerable<MGI_Inventory_Management.Models.OrderItem>)
+     .Sum(i => i.Quantity * i.SellingPrice).ToString("F2")) BDT
+
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="d-flex gap-2 mt-2">
+
+                        @if (order.Status == "Pending")
+                        {
+                            <!-- Edit -->
+                            <a asp-action="EditOrder" asp-route-id="@order.Id"
+                               class="btn btn-sm btn-warning">Edit</a>
+
+                            <!-- Delete -->
+                            <form asp-action="DeleteOrder" method="post"
+                                  onsubmit="return confirm('Delete this order?')">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@order.Id" />
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+
+                            <!-- Approve -->
+                            <form asp-action="ApproveOrder" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@order.Id" />
+                                <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                            </form>
+                        }
+
+                        @if (order.Status == "Approved")
+                        {
+                            <!-- Mark Delivered -->
+                            <form asp-action="DeliverOrder" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@order.Id" />
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    Mark as Delivered
+                                </button>
+                            </form>
+                        }
+
+                        @if (order.Status == "Delivered")
+                        {
+                            <span class="text-success fw-bold">✔ Delivered</span>
+                        }
+
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- PAGINATION -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+            @if (ViewBag.CurrentPage > 1)
+            {
+                <a href="@Url.Action("OrderRequest", new { page = ViewBag.CurrentPage - 1 })"
+                   class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+            }
+            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            {
+                <a href="@Url.Action("OrderRequest", new { page = i })"
+                   class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">@i</a>
+            }
+            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+            {
+                <a href="@Url.Action("OrderRequest", new { page = ViewBag.CurrentPage + 1 })"
+                   class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">No orders yet.</div>
+    }
+</div>

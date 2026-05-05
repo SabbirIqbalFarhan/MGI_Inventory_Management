@@ -1,0 +1,272 @@
+﻿@using MGI_Inventory_Management.Models
+@model List<ContactMessage>
+
+@{
+    ViewData["Title"] = "Contact Us";
+    int currentPage = ViewBag.CurrentPage;
+    int totalPages = ViewBag.TotalPages;
+}
+
+<style>
+    .contact-container {
+        width: 90%;
+        max-width: 1100px;
+        margin: 40px auto;
+    }
+
+    .contact-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .col-box {
+        flex: 1;
+        min-width: 300px;
+    }
+
+    .card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h3, h4 {
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    label {
+        font-weight: 500;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    input, textarea {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        transition: 0.2s;
+    }
+
+        input:focus, textarea:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+        }
+
+    button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+    .btn-submit {
+        width: 100%;
+        padding: 12px;
+    }
+
+    .success {
+        color: green;
+        font-weight: 500;
+        margin-bottom: 10px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    table, th, td {
+        border: 1px solid #ddd;
+    }
+
+    th {
+        background: #333;
+        color: white;
+        padding: 10px;
+    }
+
+    td {
+        padding: 10px;
+    }
+
+    .no-data {
+        color: gray;
+        margin-top: 10px;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 8px;
+        margin-top: 20px;
+        align-items: center;
+    }
+
+        .pagination a {
+            padding: 7px 14px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+            .pagination a.active {
+                background: #007bff;
+                color: white;
+            }
+
+            .pagination a:hover {
+                background: #0056b3;
+                color: white;
+            }
+
+    .btn-delete {
+        background-color: #dc3545;
+        padding: 5px 12px;
+        font-size: 13px;
+    }
+
+        .btn-delete:hover {
+            background-color: #a71d2a;
+        }
+</style>
+
+<div class="contact-container">
+
+    <div class="contact-row">
+
+        <!-- CONTACT INFO -->
+        <div class="col-box">
+            <div class="card">
+                <h3>Contact Information</h3>
+                <p><strong>Company:</strong> Meghna Group of Industries</p>
+                <p><strong>Address:</strong> Dhaka, Bangladesh</p>
+                <p><strong>Phone:</strong> +880 1712-345678</p>
+                <p><strong>Email:</strong> info@meghnagroup.com</p>
+            </div>
+        </div>
+
+        <!-- CONTACT FORM -->
+        <div class="col-box">
+            <div class="card">
+                <h3>Send Message</h3>
+
+                @if (TempData["SuccessMessage"] != null)
+                {
+                    <div class="success">@TempData["SuccessMessage"]</div>
+                }
+
+                <form asp-controller="Home" asp-action="SendMessage" method="post">
+
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="Name"
+                           placeholder="Enter your full name"
+                           minlength="3" required />
+
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="Email"
+                           placeholder="example@gmail.com" required />
+
+                    <label for="message">Your Message</label>
+                    <textarea id="message" name="Message" rows="4"
+                              placeholder="Write your message here..."
+                              minlength="5" required></textarea>
+
+                    <button type="submit" class="btn-submit">Send Message</button>
+
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MESSAGE TABLE -->
+    <div class="contact-row" style="margin-top:40px;">
+        <div class="col-box">
+            <div class="card">
+                <h4>User Messages</h4>
+
+                @if (Model != null && Model.Any())
+                {
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Message</th>
+                                <th>Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                int serial = (currentPage - 1) * 10 + 1;
+                            }
+                            @foreach (var msg in Model)
+                            {
+                                <tr>
+                                    <td>@serial</td>
+                                    <td>@msg.Name</td>
+                                    <td>@msg.Email</td>
+                                    <td>@msg.Message</td>
+                                    <td>@msg.CreatedAt.ToString("g")</td>
+                                    <td>
+                                        <form asp-controller="Home"
+                                              asp-action="DeleteMessage"
+                                              method="post"
+                                              onsubmit="return confirm('Delete this message?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@msg.Id" />
+                                            <button type="submit" class="btn-delete">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                serial++;
+                            }
+                        </tbody>
+                    </table>
+
+                    <!-- PAGINATION -->
+                    <div class="pagination">
+                        @if (currentPage > 1)
+                        {
+                            <a href="@Url.Action("ContactUs", new { page = currentPage - 1 })">&#8592; Prev</a>
+                        }
+
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            <a href="@Url.Action("ContactUs", new { page = i })"
+                               class="@(i == currentPage ? "active" : "")">@i</a>
+                        }
+
+                        @if (currentPage < totalPages)
+                        {
+                            <a href="@Url.Action("ContactUs", new { page = currentPage + 1 })">Next &#8594;</a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="no-data">No messages yet.</p>
+                }
+
+            </div>
+        </div>
+    </div>
+
+</div>

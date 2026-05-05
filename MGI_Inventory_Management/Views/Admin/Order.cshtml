@@ -1,0 +1,201 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
+        <h4 class="mb-0">Make Order</h4>
+    </div>
+
+    @if (TempData["OrderError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["OrderError"]</div>
+    }
+
+    <div class="card p-4 shadow">
+        <form asp-action="Order" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ordered By</label>
+                <input type="text" name="orderedBy" class="form-control"
+                       placeholder="Enter your name" required />
+            </div>
+
+            <!-- ORDER ITEMS -->
+            <div id="orderItems">
+                <div class="order-item border rounded p-3 mb-3">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Category</label>
+                            <select name="categoryIds" class="form-select category-dropdown" required>
+                                <option value="">-- Select Category --</option>
+                                @foreach (var cat in ViewBag.Categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Product</label>
+                            <select name="productNames" class="form-select product-dropdown" required>
+                                <option value="">-- Select Category First --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Quantity</label>
+                            <input type="number" name="quantities" class="form-control quantity-input"
+                                   min="1" value="1" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Unit Price</label>
+                            <input type="text" class="form-control unit-price" readonly value="0.00" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Total</label>
+                            <input type="text" class="form-control item-total" readonly value="0.00" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
+                + Add Another Product
+            </button>
+
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <h5>Grand Total: <span id="grandTotal" style="color:#00aaff;">0.00</span> BDT</h5>
+                <button type="submit" class="btn btn-primary px-4">Place Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // BUG FIX #3 — price / grand total not showing:
+        // The fetch was working but "Purchased stock" records have SellingPrice = 0,
+        // so the AJAX endpoint now skips zero-price records (fixed in controller).
+        // The JS below is also hardened to always recalculate totals correctly.
+
+        function updateGrandTotal() {
+            var total = 0;
+            document.querySelectorAll('.item-total').forEach(function (el) {
+                total += parseFloat(el.value) || 0;
+            });
+            document.getElementById('grandTotal').textContent = total.toFixed(2);
+        }
+
+        function recalcItemTotal(item) {
+            var price = parseFloat(item.querySelector('.unit-price').value) || 0;
+            var qty   = parseInt(item.querySelector('.quantity-input').value) || 0;
+            item.querySelector('.item-total').value = (price * qty).toFixed(2);
+            updateGrandTotal();
+        }
+
+        function attachEvents(item) {
+            var catDropdown     = item.querySelector('.category-dropdown');
+            var productDropdown = item.querySelector('.product-dropdown');
+            var quantityInput   = item.querySelector('.quantity-input');
+            var unitPriceInput  = item.querySelector('.unit-price');
+            var itemTotalInput  = item.querySelector('.item-total');
+
+            catDropdown.addEventListener('change', function () {
+                var categoryId = this.value;
+
+                // Reset price/total immediately when category changes
+                productDropdown.innerHTML = '<option value="">Loading...</option>';
+                unitPriceInput.value = '0.00';
+                itemTotalInput.value = '0.00';
+                updateGrandTotal();
+
+                if (!categoryId) {
+                    productDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
+                    return;
+                }
+
+                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (!data || data.length === 0) {
+                            productDropdown.innerHTML = '<option value="">No products available</option>';
+                        } else {
+                            productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
+                            data.forEach(function (p) {
+                                var opt = document.createElement('option');
+                                opt.value = p.productName;
+                                opt.text  = p.productName;
+                                productDropdown.appendChild(opt);
+                            });
+                        }
+                    })
+                    .catch(function () {
+                        productDropdown.innerHTML = '<option value="">Error loading products</option>';
+                    });
+            });
+
+            productDropdown.addEventListener('change', function () {
+                var productName = this.value;
+                var categoryId  = catDropdown.value;
+
+                if (!productName || !categoryId) {
+                    unitPriceInput.value = '0.00';
+                    itemTotalInput.value = '0.00';
+                    updateGrandTotal();
+                    return;
+                }
+
+                fetch('/Admin/GetSellingPrice?productName=' + encodeURIComponent(productName)
+                      + '&categoryId=' + encodeURIComponent(categoryId))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var price = parseFloat(data.price) || 0;
+                        unitPriceInput.value = price.toFixed(2);
+                        var qty = parseInt(quantityInput.value) || 1;
+                        itemTotalInput.value = (price * qty).toFixed(2);
+                        updateGrandTotal();
+                    })
+                    .catch(function () {
+                        unitPriceInput.value = '0.00';
+                        itemTotalInput.value = '0.00';
+                        updateGrandTotal();
+                    });
+            });
+
+            quantityInput.addEventListener('input', function () {
+                recalcItemTotal(item);
+            });
+        }
+
+        // Attach events to the first (default) row on page load
+        attachEvents(document.querySelector('.order-item'));
+
+        // Add new product row
+        document.getElementById('addItemBtn').addEventListener('click', function () {
+            var container = document.getElementById('orderItems');
+            var first     = document.querySelector('.order-item');
+            var clone     = first.cloneNode(true);
+
+            // Reset all fields in the cloned row
+            clone.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
+            clone.querySelectorAll('input').forEach(function (inp) {
+                if (inp.classList.contains('quantity-input')) inp.value = '1';
+                else inp.value = '0.00';
+            });
+            clone.querySelector('.product-dropdown').innerHTML =
+                '<option value="">-- Select Category First --</option>';
+
+            // Add remove button
+            var removeBtn = document.createElement('button');
+            removeBtn.type      = 'button';
+            removeBtn.className = 'btn btn-sm btn-danger mt-2';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', function () {
+                clone.remove();
+                updateGrandTotal();
+            });
+            clone.appendChild(removeBtn);
+
+            container.appendChild(clone);
+            attachEvents(clone);
+        });
+    </script>
+}

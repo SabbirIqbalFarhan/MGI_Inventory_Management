@@ -1,0 +1,114 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
+        <h4 class="mb-0">Manage Master Products</h4>
+    </div>
+
+    @if (TempData["MasterSuccess"] != null)
+    {
+        <div class="alert alert-success">@TempData["MasterSuccess"]</div>
+    }
+    @if (TempData["MasterError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["MasterError"]</div>
+    }
+
+    <!-- ADD PRODUCT MASTER FORM -->
+    <div class="card p-4 shadow mb-4">
+        <h5 style="color:#00aaff;">Add Product to Master List</h5>
+        <form asp-action="AddProductMaster" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Product Name</label>
+                <input type="text" name="productName" class="form-control"
+                       placeholder="e.g. Fresh Drinking Water" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Category</label>
+                <select name="categoryId" class="form-select" required>
+                    <option value="">-- Select Category --</option>
+                    @foreach (var cat in ViewBag.Categories)
+                    {
+                        <option value="@cat.Id">@cat.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Description</label>
+                <input type="text" name="description" class="form-control"
+                       placeholder="e.g. Mineral water 500ml" required />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Add</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- PRODUCT MASTER TABLE -->
+    <div class="card p-4 shadow">
+        <h5 style="color:#00aaff;">Master Product List</h5>
+        @if (ViewBag.ProductMasters != null && ((IEnumerable<dynamic>)ViewBag.ProductMasters).Any())
+        {
+            <table class="table table-bordered table-hover mt-2">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int i = (ViewBag.CurrentPage - 1) * 10 + 1;
+                    }
+                    @foreach (var item in ViewBag.ProductMasters)
+                    {
+                        <tr>
+                            <td>@i</td>
+                            <td>@item.ProductName</td>
+                            <td>@item.Category.Name</td>
+                            <td>@item.Description</td>
+                            <td>
+                                <form asp-action="DeleteProductMaster" method="post"
+                                      style="display:inline"
+                                      onsubmit="return confirm('Remove this product?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                </tbody>
+            </table>
+
+            <!-- PAGINATION -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                @if (ViewBag.CurrentPage > 1)
+                {
+                    <a href="@Url.Action("ManageProducts", new { page = ViewBag.CurrentPage - 1 })"
+                       class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+                }
+                @for (int p = 1; p <= ViewBag.TotalPages; p++)
+                {
+                    <a href="@Url.Action("ManageProducts", new { page = p })"
+                       class="btn btn-sm @(p == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">@p</a>
+                }
+                @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                {
+                    <a href="@Url.Action("ManageProducts", new { page = ViewBag.CurrentPage + 1 })"
+                       class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mt-2">No products in master list yet.</p>
+        }
+    </div>
+</div>

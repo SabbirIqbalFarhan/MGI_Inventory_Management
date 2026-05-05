@@ -1,0 +1,189 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <!-- ADD PRODUCT BUTTON -->
+    <div class="text-end mb-3">
+        <a asp-controller="Admin" asp-action="AddProduct" class="btn btn-primary">
+            + Add Product
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+
+    <!-- TABLE 1: All Individual Entries — read-only history log -->
+    <div class="card p-4 shadow mb-5">
+        <h4 style="color:#00aaff;">All Product Entries</h4>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mt-2">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Purchase Rate</th>
+                        <th>Selling Price</th>
+                        <th>Date & Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int s1 = ViewBag.CurrentPage1 != null ? (ViewBag.CurrentPage1 - 1) * 10 + 1 : 1;
+                    }
+                    @if (ViewBag.AllEntries != null)
+                    {
+                        foreach (var item in ViewBag.AllEntries)
+                        {
+                            // Highlight rows by record type
+                            string rowClass = "";
+                            string desc = item.Description?.ToString() ?? "";
+                            if (desc == "Ordered stock") rowClass = "table-danger";
+                            else if (desc == "Purchased stock") rowClass = "table-success";
+                            else if (desc == "Edited stock") rowClass = "table-warning";
+                            else if (desc == "Deleted stock") rowClass = "table-secondary";
+
+                            <tr class="@rowClass">
+                                <td>@s1</td>
+                                <td>@item.Name</td>
+                                <td>@desc</td>
+                                <td>@item.Category?.Name</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.PurchaseRate</td>
+                                <td>@item.SellingPrice</td>
+                                <td>@item.PublishedDate.ToString("dd MMM yyyy hh:mm tt")</td>
+                            </tr>
+                            s1++;
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">No entries yet.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PAGINATION TABLE 1 -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+            @if (ViewBag.CurrentPage1 > 1)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = ViewBag.CurrentPage1 - 1, page2 = ViewBag.CurrentPage2 })"
+                   class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+            }
+            @for (int i = 1; i <= ViewBag.TotalPages1; i++)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = i, page2 = ViewBag.CurrentPage2 })"
+                   class="btn btn-sm @(i == (int)ViewBag.CurrentPage1 ? "btn-primary" : "btn-outline-primary")">@i</a>
+            }
+            @if (ViewBag.CurrentPage1 < ViewBag.TotalPages1)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = ViewBag.CurrentPage1 + 1, page2 = ViewBag.CurrentPage2 })"
+                   class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+            }
+        </div>
+    </div>
+
+    <!-- TABLE 2: Product Summary — net stock with Edit/Delete actions -->
+    <div class="card p-4 shadow mb-4">
+        <h4 style="color:#00aaff;">Product Summary</h4>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mt-2">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Net Quantity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int s2 = ViewBag.CurrentPage2 != null ? (ViewBag.CurrentPage2 - 1) * 10 + 1 : 1;
+                    }
+                    @if (ViewBag.GroupedProducts != null)
+                    {
+                        foreach (var item in ViewBag.GroupedProducts)
+                        {
+                            <tr>
+                                <td>@s2</td>
+                                <td>@item.ProductName</td>
+                                <td>@item.Description</td>
+                                <td>@item.Category</td>
+                                <td>
+                                    @{
+                                        int qty = (int)item.TotalQuantity;
+                                        string qtyClass = qty < 0 ? "text-danger fw-bold" : (qty == 0 ? "text-warning fw-bold" : "");
+                                    }
+                                    <span class="@qtyClass">@qty</span>
+                                </td>
+                                <td>
+                                    @if ((int)item.LatestId > 0)
+                                    {
+                                        <a asp-action="EditProduct" asp-route-id="@item.LatestId"
+                                           class="btn btn-sm btn-warning">Edit</a>
+
+                                        <form asp-action="DeleteProduct" method="post"
+                                              style="display:inline"
+                                              onsubmit="return confirm('This will add a Deleted stock record and remove quantity from the summary. Continue?')">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@item.LatestId" />
+                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">No active record</span>
+                                    }
+                                </td>
+                            </tr>
+                            s2++;
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No data yet.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- LEGEND -->
+        <div class="mt-2 d-flex gap-3 flex-wrap" style="font-size:0.82rem;">
+            <span><span class="badge bg-success">■</span> Purchased stock</span>
+            <span><span class="badge bg-danger">■</span> Ordered stock (out)</span>
+            <span><span class="badge bg-warning text-dark">■</span> Edited stock</span>
+            <span><span class="badge bg-secondary">■</span> Deleted stock</span>
+        </div>
+
+        <!-- PAGINATION TABLE 2 -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+            @if (ViewBag.CurrentPage2 > 1)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = ViewBag.CurrentPage1, page2 = ViewBag.CurrentPage2 - 1 })"
+                   class="btn btn-sm btn-outline-secondary">&#8592; Prev</a>
+            }
+            @for (int i = 1; i <= ViewBag.TotalPages2; i++)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = ViewBag.CurrentPage1, page2 = i })"
+                   class="btn btn-sm @(i == (int)ViewBag.CurrentPage2 ? "btn-secondary" : "btn-outline-secondary")">@i</a>
+            }
+            @if (ViewBag.CurrentPage2 < ViewBag.TotalPages2)
+            {
+                <a href="@Url.Action("ViewProduct", new { page1 = ViewBag.CurrentPage1, page2 = ViewBag.CurrentPage2 + 1 })"
+                   class="btn btn-sm btn-outline-secondary">Next &#8594;</a>
+            }
+        </div>
+    </div>
+
+</div>

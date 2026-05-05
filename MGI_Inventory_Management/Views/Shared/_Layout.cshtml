@@ -1,0 +1,359 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MGI Inventory</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/MGI_Inventory_Management.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+    <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                padding-top: 80px;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+                background: #f7f9fc;
+            }
+
+            .main-content {
+                flex: 1;
+                width: 100%;
+            }
+
+            /* ── NAVBAR ─────────────────────────── */
+            .main-navbar {
+                background: linear-gradient(135deg, #00aaff, #0077cc);
+                min-height: 70px;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            }
+
+            .nav-logo {
+                font-size: 1.3rem;
+                font-weight: 800;
+                color: white !important;
+                letter-spacing: 0.5px;
+                text-decoration: none;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+                .nav-logo .logo-box {
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 8px;
+                    width: 36px;
+                    height: 36px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.1rem;
+                }
+
+            .nav-link-item {
+                color: rgba(255,255,255,0.9) !important;
+                font-size: 0.9rem;
+                font-weight: 500;
+                padding: 8px 14px !important;
+                border-radius: 8px;
+                transition: all 0.2s ease;
+                text-decoration: none;
+            }
+
+                .nav-link-item:hover {
+                    background: rgba(255,255,255,0.15);
+                    color: white !important;
+                }
+
+                .nav-link-item.active {
+                    background: rgba(255,255,255,0.2);
+                    color: white !important;
+                }
+
+            .nav-btn-outline {
+                color: white !important;
+                border: 1.5px solid rgba(255,255,255,0.6);
+                border-radius: 8px;
+                padding: 7px 16px !important;
+                font-size: 0.88rem;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                text-decoration: none;
+            }
+
+                .nav-btn-outline:hover {
+                    background: white;
+                    color: #0077cc !important;
+                    border-color: white;
+                }
+
+            .nav-btn-solid {
+                background: white;
+                color: #0077cc !important;
+                border: 1.5px solid white;
+                border-radius: 8px;
+                padding: 7px 16px !important;
+                font-size: 0.88rem;
+                font-weight: 600;
+                transition: all 0.2s ease;
+                text-decoration: none;
+            }
+
+                .nav-btn-solid:hover {
+                    background: rgba(255,255,255,0.85);
+                    color: #005fa3 !important;
+                }
+
+            .nav-divider {
+                width: 1px;
+                height: 24px;
+                background: rgba(255,255,255,0.25);
+                margin: 0 6px;
+            }
+
+            .navbar-toggler {
+                border-color: rgba(255,255,255,0.5) !important;
+            }
+
+            .navbar-toggler-icon {
+                filter: brightness(0) invert(1);
+            }
+
+            /* ── FOOTER ─────────────────────────── */
+            footer {
+                background: linear-gradient(135deg, #00aaff, #0077cc);
+                color: white;
+                margin-top: auto;
+            }
+
+            .footer-brand {
+                font-size: 1.3rem;
+                font-weight: 800;
+                margin-bottom: 10px;
+            }
+
+            .footer-desc {
+                font-size: 0.95rem;
+                opacity: 0.85;
+                line-height: 1.7;
+            }
+
+            .footer-heading {
+                font-size: 1.05rem;
+                font-weight: 700;
+                margin-bottom: 14px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid rgba(255,255,255,0.25);
+            }
+
+            .footer-link {
+                display: block;
+                color: rgba(255,255,255,0.85);
+                text-decoration: none;
+                font-size: 0.95rem;
+                padding: 4px 0;
+                transition: all 0.2s ease;
+            }
+
+                .footer-link:hover {
+                    color: white;
+                    padding-left: 6px;
+                }
+
+            .footer-contact-item {
+                font-size: 0.95rem;
+                opacity: 0.85;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .footer-bottom {
+                background: rgba(0,0,0,0.1);
+                text-align: center;
+                padding: 14px;
+                font-size: 0.9rem;
+                opacity: 0.9;
+            }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <header>
+        <nav class="navbar navbar-expand-lg main-navbar fixed-top">
+            <div class="container-fluid px-4">
+
+                <!-- LOGO -->
+                <a class="nav-logo" asp-controller="Home" asp-action="Index">
+                    <div class="logo-box">📦</div>
+                    MGI Inventory
+                </a>
+
+                <!-- MOBILE TOGGLE -->
+                <button class="navbar-toggler" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mainNavbar"
+                        aria-controls="mainNavbar"
+                        aria-expanded="false"
+                        aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- NAV LINKS -->
+                <div class="collapse navbar-collapse" id="mainNavbar">
+
+                    <!-- LEFT LINKS -->
+                    <ul class="navbar-nav me-auto gap-1 mt-2 mt-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link-item"
+                                   asp-controller="Home" asp-action="Index">
+                                Home
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link-item"
+                                   asp-controller="Home" asp-action="Privacy">
+                                Privacy
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link-item"
+                                   asp-controller="Home" asp-action="ContactUs">
+                                Contact Us
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link-item"
+                                   asp-controller="Home" asp-action="VissionMissionGoal">
+                                Vision & Mission
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- RIGHT BUTTONS -->
+                    <ul class="navbar-nav align-items-lg-center gap-2 mt-2 mt-lg-0">
+
+                        <!-- DASHBOARD BUTTON -->
+                        <li class="nav-item">
+                            <a class="nav-link-item d-flex align-items-center gap-1"
+                                   asp-controller="Admin" asp-action="Index">
+                                <i class="bi bi-grid-3x3-gap"></i>
+                                Dashboard
+                            </a>
+                        </li>
+
+                        <li class="d-none d-lg-flex align-items-center">
+                            <div class="nav-divider"></div>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-btn-outline d-flex align-items-center gap-1"
+                                   asp-controller="Auth" asp-action="Login">
+                                <i class="bi bi-box-arrow-in-right"></i>
+                                Login
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-btn-solid d-flex align-items-center gap-1"
+                                   asp-controller="Auth" asp-action="Register">
+                                <i class="bi bi-person-plus"></i>
+                                Register
+                            </a>
+                        </li>
+
+                    </ul>
+
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main role="main" class="main-content">
+        @RenderBody()
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container py-5">
+            <div class="row g-4">
+
+                <!-- BRAND -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="footer-brand">📦 MGI Inventory</div>
+                    <p class="footer-desc">
+                        A modern inventory management system for efficiently managing
+                        products, orders, purchases, and business operations.
+                    </p>
+                </div>
+
+                <!-- QUICK LINKS -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="footer-heading">Quick Links</div>
+                    <a class="footer-link" asp-controller="Home" asp-action="Index">
+                        🏠 Home
+                    </a>
+                    <a class="footer-link" asp-controller="Admin" asp-action="Index">
+                        📊 Dashboard
+                    </a>
+                    <a class="footer-link" asp-controller="Home" asp-action="Privacy">
+                        🔒 Privacy Policy
+                    </a>
+                    <a class="footer-link" asp-controller="Home" asp-action="ContactUs">
+                        📩 Contact Us
+                    </a>
+                    <a class="footer-link" asp-controller="Home" asp-action="VissionMissionGoal">
+                        🎯 Vision & Mission
+                    </a>
+                </div>
+
+                <!-- CONTACT -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="footer-heading">Contact Us</div>
+                    <div class="footer-contact-item">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        Dhaka, Bangladesh
+                    </div>
+                    <div class="footer-contact-item">
+                        <i class="bi bi-envelope-fill"></i>
+                        info@meghnagroup.com
+                    </div>
+                    <div class="footer-contact-item">
+                        <i class="bi bi-telephone-fill"></i>
+                        +880 1712-345678
+                    </div>
+                    <div class="footer-contact-item">
+                        <i class="bi bi-clock-fill"></i>
+                        Sun – Thu, 9AM – 6PM
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- FOOTER BOTTOM -->
+        <div class="footer-bottom">
+            &copy; 2026 MGI Inventory Management &nbsp;|&nbsp; All Rights Reserved
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+</body>
+</html>

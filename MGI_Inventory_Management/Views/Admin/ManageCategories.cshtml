@@ -1,0 +1,95 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
+        <h4 class="mb-0">Manage Categories</h4>
+    </div>
+
+    @if (TempData["CategorySuccess"] != null)
+    {
+        <div class="alert alert-success">@TempData["CategorySuccess"]</div>
+    }
+    @if (TempData["CategoryError"] != null)
+    {
+        <div class="alert alert-danger">@TempData["CategoryError"]</div>
+    }
+
+    <!-- ADD CATEGORY FORM -->
+    <div class="card p-4 shadow mb-4">
+        <h5 style="color:#00aaff;">Add New Category</h5>
+        <form asp-action="AddCategory" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <div class="col-md-10">
+                <label class="form-label fw-bold">Category Name</label>
+                <input type="text" name="categoryName" class="form-control"
+                       placeholder="e.g. Food & Beverage" required />
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Add</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- CATEGORY TABLE -->
+    <div class="card p-4 shadow">
+        <h5 style="color:#00aaff;">Category List</h5>
+        @if (ViewBag.Categories != null && ((IEnumerable<dynamic>)ViewBag.Categories).Any())
+        {
+            <table class="table table-bordered table-hover mt-2">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Category Name</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int c = (ViewBag.CurrentPage - 1) * 10 + 1;
+                    }
+                    @foreach (var cat in ViewBag.Categories)
+                    {
+                        <tr>
+                            <td>@c</td>
+                            <td>@cat.Name</td>
+                            <td>
+                                <form asp-action="DeleteCategory" method="post"
+                                      style="display:inline"
+                                      onsubmit="return confirm('Delete this category?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@cat.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        c++;
+                    }
+                </tbody>
+            </table>
+
+            <!-- PAGINATION -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                @if (ViewBag.CurrentPage > 1)
+                {
+                    <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage - 1 })"
+                       class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+                }
+                @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                {
+                    <a href="@Url.Action("ManageCategories", new { page = i })"
+                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">@i</a>
+                }
+                @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                {
+                    <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage + 1 })"
+                       class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mt-2">No categories yet.</p>
+        }
+    </div>
+</div>

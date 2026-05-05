@@ -1,0 +1,125 @@
+﻿@model MGI_Inventory_Management.Models.MonthlyOrderReport
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            box-sizing: border-box; margin: 0; padding: 0;
+        }
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #333; padding: 30px; }
+        .invoice-header { width: 100%; margin-bottom: 30px; border-bottom: 3px solid #00aaff; padding-bottom: 20px; overflow: hidden; }
+        .header-left { float: left; }
+        .header-right { float: right; text-align: right; }
+        .clearfix::after { content: ""; display: table; clear: both; }
+        .company-name { font-size: 22px; font-weight: bold; color: #00aaff; }
+        .company-sub { font-size: 11px; color: #666; margin-top: 4px; }
+        .invoice-title { font-size: 22px; font-weight: bold; color: #333; }
+        .invoice-meta { font-size: 12px; color: #666; margin-top: 6px; line-height: 1.8; }
+        .order-block { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+        .order-block-header { background: #00aaff; color: white; padding: 8px 14px; font-weight: bold; font-size: 12px; overflow: hidden; }
+        .order-block-header-left { float: left; }
+        .order-block-header-right { float: right; }
+        table { width: 100%; border-collapse: collapse; }
+        thead tr { background: #e8f4ff; }
+        thead th { padding: 8px 10px; text-align: left; font-size: 11px; font-weight: bold; color: #00aaff; border-bottom: 1px solid #cce4ff; }
+        tbody td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+        tfoot td { padding: 7px 10px; font-weight: bold; background: #f5faff; font-size: 12px; }
+        .text-right { text-align: right; }
+        .grand-summary { background: #00aaff; color: white; padding: 14px 18px; border-radius: 8px; margin-top: 24px; overflow: hidden; }
+        .grand-summary-left { float: left; font-size: 14px; font-weight: bold; }
+        .grand-summary-right { float: right; font-size: 20px; font-weight: bold; }
+        .footer { margin-top: 30px; border-top: 1px solid #eee; padding-top: 14px; overflow: hidden; font-size: 11px; color: #aaa; }
+        .footer-left { float: left; }
+        .footer-right { float: right; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="invoice-header clearfix">
+        <div class="header-left">
+            <div class="company-name">Meghna Group of Industries</div>
+            <div class="company-sub">Dhaka, Bangladesh</div>
+            <div class="company-sub">info@meghnagroup.com | +880 1712-345678</div>
+        </div>
+        <div class="header-right">
+            <div class="invoice-title">MONTHLY ORDER REPORT</div>
+            <div class="invoice-meta">
+                <div><strong>Period:</strong> @Model.Month</div>
+                <div><strong>Total Orders:</strong> @Model.Orders.Count</div>
+                <div><strong>Generated:</strong> @DateTime.Now.ToString("dd MMM yyyy")</div>
+            </div>
+        </div>
+    </div>
+
+    @{ decimal monthlyTotal = 0; }
+
+    @foreach (var order in Model.Orders)
+    {
+        decimal orderTotal = order.Items.Sum(i => i.Quantity * i.SellingPrice);
+        monthlyTotal += orderTotal;
+
+        <div class="order-block">
+            <div class="order-block-header clearfix">
+                <span class="order-block-header-left">
+                    Order #ORD-@order.Id.ToString("D5") | @order.OrderedBy
+                </span>
+                <span class="order-block-header-right">
+                    @order.OrderDate.ToString("dd MMM yyyy hh:mm tt")
+                </span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Category</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th class="text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int s = 1; }
+                    @foreach (var item in order.Items)
+                    {
+                        <tr>
+                            <td>@s</td>
+                            <td>@item.Category?.Name</td>
+                            <td>@item.ProductName</td>
+                            <td>@item.Quantity</td>
+                            <td>@item.SellingPrice.ToString("F2")</td>
+                            <td class="text-right">@((item.Quantity * item.SellingPrice).ToString("F2"))</td>
+                        </tr>
+                        s++;
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-right">Order Total:</td>
+                        <td class="text-right">BDT @orderTotal.ToString("F2")</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+
+    <!-- MONTHLY GRAND TOTAL -->
+    <div class="grand-summary clearfix">
+        <div class="grand-summary-left">Monthly Grand Total (@Model.Month)</div>
+        <div class="grand-summary-right">BDT @monthlyTotal.ToString("F2")</div>
+    </div>
+
+    <div class="footer clearfix">
+        <div class="footer-left">MGI Inventory Management System</div>
+        <div class="footer-right">Generated on @DateTime.Now.ToString("dd MMM yyyy hh:mm tt")</div>
+    </div>
+
+</body>
+</html>

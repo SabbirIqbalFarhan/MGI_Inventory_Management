@@ -1,0 +1,130 @@
+﻿@model MGI_Inventory_Management.Models.Purchase
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        * { -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #333; padding: 30px; }
+
+        .invoice-header { width: 100%; margin-bottom: 30px; border-bottom: 3px solid #00aaff; padding-bottom: 20px; overflow: hidden; }
+        .header-left { float: left; }
+        .header-right { float: right; text-align: right; }
+        .clearfix::after { content: ""; display: table; clear: both; }
+
+        .company-name { font-size: 22px; font-weight: bold; color: #00aaff; }
+        .company-sub { font-size: 11px; color: #666; margin-top: 4px; }
+        .invoice-title { font-size: 26px; font-weight: bold; color: #333; }
+        .invoice-meta { font-size: 12px; color: #666; margin-top: 6px; line-height: 1.6; }
+        .badge-status { background: #00aaff; color: white; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 6px; }
+
+        .info-section { width: 100%; margin-bottom: 24px; overflow: hidden; }
+        .info-box { float: left; width: 30%; margin-right: 3%; background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
+        .info-box:last-child { margin-right: 0; }
+        .info-label { font-size: 10px; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 4px; }
+        .info-value { font-size: 13px; font-weight: bold; color: #1a1a1a; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        thead tr { background: #00aaff; color: white; }
+        thead th { padding: 10px 12px; text-align: left; font-size: 12px; font-weight: bold; }
+        tbody tr:nth-child(even) { background: #f5faff; }
+        tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; font-size: 12px; }
+        tfoot td { padding: 9px 12px; font-weight: bold; background: #f8f9fa; }
+        .total-row { background: #00aaff !important; color: white; }
+        .total-row td { font-size: 14px; color: white; }
+        .text-right { text-align: right; }
+
+        .footer { margin-top: 40px; border-top: 1px solid #eee; padding-top: 14px; overflow: hidden; font-size: 11px; color: #aaa; }
+        .footer-left { float: left; }
+        .footer-right { float: right; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="invoice-header clearfix">
+        <div class="header-left">
+            <div class="company-name">Meghna Group of Industries</div>
+            <div class="company-sub">Dhaka, Bangladesh</div>
+            <div class="company-sub">info@meghnagroup.com | +880 1712-345678</div>
+        </div>
+        <div class="header-right">
+            <div class="invoice-title">PURCHASE INVOICE</div>
+            <div class="invoice-meta">
+                <div><strong>Invoice #:</strong> PUR-@Model.Id.ToString("D5")</div>
+                <div><strong>Date:</strong> @Model.PurchaseDate.ToString("dd MMM yyyy")</div>
+            </div>
+            <div><span class="badge-status">@Model.Status</span></div>
+        </div>
+    </div>
+
+    <!-- INFO SECTION -->
+    <div class="info-section clearfix">
+        <div class="info-box">
+            <div class="info-label">Purchased By</div>
+            <div class="info-value">@Model.PurchasedBy</div>
+        </div>
+        <div class="info-box">
+            <div class="info-label">Purchase Date</div>
+            <div class="info-value">@Model.PurchaseDate.ToString("dd MMM yyyy hh:mm tt")</div>
+        </div>
+        <div class="info-box">
+            <div class="info-label">Purchase ID</div>
+            <div class="info-value">PUR-@Model.Id.ToString("D5")</div>
+        </div>
+    </div>
+
+    <!-- ITEMS TABLE -->
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Category</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Unit Price (BDT)</th>
+                <th class="text-right">Total (BDT)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ int s = 1; decimal grandTotal = 0; }
+            @foreach (var item in Model.Items)
+            {
+                decimal lineTotal = item.Quantity * item.PurchasePrice;
+                grandTotal += lineTotal;
+                <tr>
+                    <td>@s</td>
+                    <td>@item.Category?.Name</td>
+                    <td>@item.ProductName</td>
+                    <td>@item.Quantity</td>
+                    <td>@item.PurchasePrice.ToString("F2")</td>
+                    <td class="text-right">@lineTotal.ToString("F2")</td>
+                </tr>
+                s++;
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5" class="text-right">Subtotal:</td>
+                <td class="text-right">@grandTotal.ToString("F2")</td>
+            </tr>
+            <tr class="total-row">
+                <td colspan="5" class="text-right">GRAND TOTAL:</td>
+                <td class="text-right">BDT @grandTotal.ToString("F2")</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- FOOTER -->
+    <div class="footer clearfix">
+        <div class="footer-left">Thank you for your purchase!</div>
+        <div class="footer-right">Generated on @DateTime.Now.ToString("dd MMM yyyy hh:mm tt")</div>
+    </div>
+
+</body>
+</html>

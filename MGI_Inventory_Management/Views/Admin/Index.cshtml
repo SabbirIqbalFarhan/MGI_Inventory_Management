@@ -1,0 +1,196 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid px-4 py-4">
+
+    <!-- PAGE TITLE -->
+    <div class="mb-4">
+        <h3 class="fw-bold">Dashboard</h3>
+        <small class="text-muted">Manage your system efficiently</small>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-box-seam text-primary"></i>
+        <span class="fw-bold text-uppercase small text-secondary">Products</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <!-- CARD -->
+        <div class="col-lg-3 col-md-6">
+            <a asp-controller="Admin" asp-action="ManageCategories" class="text-decoration-none">
+                <div class="dashboard-card border-primary">
+                    <i class="bi bi-collection fs-3 text-primary"></i>
+                    <h6 class="fw-bold mt-2">Manage Categories</h6>
+                    <small class="text-muted">Add or remove categories</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <a asp-controller="Admin" asp-action="ManageProducts" class="text-decoration-none">
+                <div class="dashboard-card border-primary">
+                    <i class="bi bi-card-list fs-3 text-primary"></i>
+                    <h6 class="fw-bold mt-2">Master Products</h6>
+                    <small class="text-muted">Manage product list</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <a asp-controller="Admin" asp-action="AddProduct" class="text-decoration-none">
+                <div class="dashboard-card border-primary">
+                    <i class="bi bi-plus-circle fs-3 text-primary"></i>
+                    <h6 class="fw-bold mt-2">Add Products</h6>
+                    <small class="text-muted">Insert new items</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <a asp-controller="Admin" asp-action="ViewProduct" class="text-decoration-none">
+                <div class="dashboard-card border-primary">
+                    <i class="bi bi-eye fs-3 text-primary"></i>
+                    <h6 class="fw-bold mt-2">View Products</h6>
+                    <small class="text-muted">Check stock</small>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-cart-check text-success"></i>
+        <span class="fw-bold text-uppercase small text-secondary">Orders</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="Order" class="text-decoration-none">
+                <div class="dashboard-card border-success">
+                    <i class="bi bi-cart fs-3 text-success"></i>
+                    <h6 class="fw-bold mt-2">Make Order</h6>
+                    <small class="text-muted">Place new orders</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="OrderRequest" class="text-decoration-none">
+                <div class="dashboard-card border-success">
+                    <i class="bi bi-envelope fs-3 text-success"></i>
+                    <h6 class="fw-bold mt-2">Order Requests</h6>
+                    <small class="text-muted">Approve requests</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="OrderHistory" class="text-decoration-none">
+                <div class="dashboard-card border-success">
+                    <i class="bi bi-clock-history fs-3 text-success"></i>
+                    <h6 class="fw-bold mt-2">Order History</h6>
+                    <small class="text-muted">Track orders</small>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- PURCHASES -->
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-truck text-warning"></i>
+        <span class="fw-bold text-uppercase small text-secondary">Purchases</span>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="PurchaseProduct" class="text-decoration-none">
+                <div class="dashboard-card border-warning">
+                    <i class="bi bi-building fs-3 text-warning"></i>
+                    <h6 class="fw-bold mt-2">Make Purchase</h6>
+                    <small class="text-muted">Buy from supplier</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="PurchaseRequest" class="text-decoration-none">
+                <div class="dashboard-card border-warning">
+                    <i class="bi bi-inbox fs-3 text-warning"></i>
+                    <h6 class="fw-bold mt-2">Purchase Requests</h6>
+                    <small class="text-muted">Approve supplier requests</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="PurchaseHistory" class="text-decoration-none">
+                <div class="dashboard-card border-warning">
+                    <i class="bi bi-archive fs-3 text-warning"></i>
+                    <h6 class="fw-bold mt-2">Purchase History</h6>
+                    <small class="text-muted">View purchases</small>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-people text-purple"></i>
+        <span class="fw-bold text-uppercase small text-secondary">User Management</span>
+    </div>
+
+    <div class="row g-3">
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="AddRoles" class="text-decoration-none">
+                <div class="dashboard-card border-purple">
+                    <i class="bi bi-key fs-3 text-purple"></i>
+                    <h6 class="fw-bold mt-2">Add Roles</h6>
+                    <small class="text-muted">Create roles</small>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <a asp-controller="Admin" asp-action="ViewRoles" class="text-decoration-none">
+                <div class="dashboard-card border-purple">
+                    <i class="bi bi-people-fill fs-3 text-purple"></i>
+                    <h6 class="fw-bold mt-2">View Roles</h6>
+                    <small class="text-muted">Manage users</small>
+                </div>
+            </a>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- CUSTOM CSS -->
+<style>
+    .dashboard-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        height: 100%;
+        border-bottom: 4px solid;
+        transition: all 0.25s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .border-primary { border-color: #0d6efd !important; }
+    .border-success { border-color: #198754 !important; }
+    .border-warning { border-color: #ff8800 !important; }
+    .border-purple { border-color: #7c3aed !important; }
+
+    .text-purple { color: #7c3aed; }
+</style>

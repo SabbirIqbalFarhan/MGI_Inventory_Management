@@ -1,0 +1,193 @@
+﻿@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+
+    <!-- HEADER -->
+    <div class="card border-0 shadow-lg rounded-4 mb-4"
+         style="background: linear-gradient(135deg, #00aaff, #007bff);">
+        <div class="card-body d-flex align-items-center text-white p-4">
+            <i class="bi bi-bag-check fs-2 me-3"></i>
+            <div>
+                <h4 class="mb-0 fw-bold">Purchase History</h4>
+                <small>Track and manage all purchase records</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- MONTHLY INVOICE -->
+    <div class="card border-0 shadow-lg rounded-4 mb-4">
+        <div class="card-body p-4">
+
+            <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-file-earmark-arrow-down fs-3 text-primary me-3"></i>
+                <div>
+                    <h5 class="mb-0 fw-bold">Download Monthly Invoice</h5>
+                    <small class="text-muted">Generate purchase report PDF</small>
+                </div>
+            </div>
+
+            <form asp-action="DownloadMonthlyPurchaseInvoice" method="get" class="row g-3">
+
+                <!-- MONTH -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                        <i class="bi bi-calendar-event me-1 text-primary"></i> Month
+                    </label>
+                    <select name="month" class="form-select rounded-3 shadow-sm">
+                        @{
+                            string[] monthNames = { "January","February","March","April","May","June",
+                                                "July","August","September","October","November","December" };
+                            for (int m = 1; m <= 12; m++)
+                            {
+                                <option value="@m" selected="@(m == DateTime.Now.Month)">
+                                    @monthNames[m - 1]
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- YEAR -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                        <i class="bi bi-calendar2-week me-1 text-primary"></i> Year
+                    </label>
+                    <select name="year" class="form-select rounded-3 shadow-sm">
+                        @{
+                            int currentYear = DateTime.Now.Year;
+                            for (int y = currentYear; y >= currentYear - 3; y--)
+                            {
+                                <option value="@y" selected="@(y == currentYear)">
+                                    @y
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- BUTTON -->
+                <div class="col-md-4">
+                    <label class="form-label invisible">Hidden</label>
+                    <button type="submit"
+                            class="btn w-100 text-white rounded-3 shadow fw-semibold"
+                            style="background: linear-gradient(135deg, #007bff, #00c6ff);">
+                        <i class="bi bi-download me-2"></i>
+                        Download PDF
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+    <!-- PURCHASE LIST -->
+    @if (ViewBag.Purchases != null && ((IEnumerable<dynamic>)ViewBag.Purchases).Any())
+    {
+        @foreach (var purchase in ViewBag.Purchases)
+        {
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+
+                <!-- HEADER -->
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-1">
+                            <i class="bi bi-receipt me-1 text-primary"></i>
+                            Purchase #@purchase.Id
+                        </h6>
+                        <small class="text-muted">
+                            @purchase.PurchasedBy • @purchase.PurchaseDate.ToString("dd MMM yyyy hh:mm tt")
+                        </small>
+                    </div>
+
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="badge bg-success px-3 py-2">✔ Completed</span>
+                        <a asp-action="DownloadPurchaseInvoice"
+                               asp-route-id="@purchase.Id"
+                               class="btn btn-sm btn-outline-primary rounded-pill">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- BODY -->
+                <div class="card-body">
+
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Category</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int s = 1;
+                                }
+                                @foreach (var item in purchase.Items)
+                                {
+                                    <tr>
+                                        <td>@s</td>
+                                        <td><span class="badge bg-light text-dark">@item.Category?.Name</span></td>
+                                        <td>@item.ProductName</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@item.PurchasePrice.ToString("F2")</td>
+                                        <td class="fw-semibold text-primary">
+                                            @((item.Quantity * item.PurchasePrice).ToString("F2"))
+                                        </td>
+                                    </tr>
+                                    s++;
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Grand Total:</td>
+                                    <td class="fw-bold text-success fs-6">
+                                        @((purchase.Items as IEnumerable<MGI_Inventory_Management.Models.PurchaseItem>)
+                                            .Sum(i => i.Quantity * i.PurchasePrice).ToString("F2")) BDT
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        }
+
+        <!-- PAGINATION -->
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            @if (ViewBag.CurrentPage > 1)
+            {
+                <a href="@Url.Action("PurchaseHistory", new { page = ViewBag.CurrentPage - 1 })"
+                   class="btn btn-outline-primary rounded-pill px-3">←</a>
+            }
+
+            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+            {
+                <a href="@Url.Action("PurchaseHistory", new { page = i })"
+                       class="btn rounded-pill px-3 @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">
+                    @i
+                </a>
+            }
+
+            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+            {
+                <a href="@Url.Action("PurchaseHistory", new { page = ViewBag.CurrentPage + 1 })"
+                   class="btn btn-outline-primary rounded-pill px-3">→</a>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info rounded-3 shadow-sm">
+            <i class="bi bi-info-circle me-2"></i> No purchases found.
+        </div>
+    }
+
+</div>
