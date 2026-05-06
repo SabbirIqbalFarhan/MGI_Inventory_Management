@@ -258,21 +258,31 @@
                             <div class="nav-divider"></div>
                         </li>
 
-                        <li class="nav-item">
-                            <a class="nav-btn-outline d-flex align-items-center gap-1"
-                                   asp-controller="Auth" asp-action="Login">
-                                <i class="bi bi-box-arrow-in-right"></i>
-                                Login
-                            </a>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-btn-solid d-flex align-items-center gap-1"
-                                   asp-controller="Auth" asp-action="Register">
-                                <i class="bi bi-person-plus"></i>
-                                Register
-                            </a>
-                        </li>
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item d-flex align-items-center gap-2">
+                                <span class="text-white opacity-75 small d-none d-lg-inline">
+                                    👋 @User.Identity.Name
+                                </span>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                    <button type="submit" class="nav-btn-outline d-flex align-items-center gap-1 border-0 bg-transparent">
+                                        <i class="bi bi-box-arrow-right"></i>
+                                        Logout
+                                    </button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-btn-outline d-flex align-items-center gap-1"
+                                       asp-controller="Account" asp-action="Login">
+                                    <i class="bi bi-box-arrow-in-right"></i>
+                                    Login
+                                </a>
+                            </li>
+                        }
+                        
 
                     </ul>
 

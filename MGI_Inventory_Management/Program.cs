@@ -15,15 +15,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-// 🔹 ✅ ADD IDENTITY HERE
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
+// 🔹 Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
 
-// 🔹 Cookie settings (login path)
+// 🔹 Cookie settings
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
 });
 
 var app = builder.Build();
@@ -40,8 +47,7 @@ app.UseStaticFiles();
 Rotativa.AspNetCore.RotativaConfiguration.Setup(app.Environment.WebRootPath, "Rotativa");
 app.UseRouting();
 
-// 🔥 IMPORTANT ORDER
-app.UseAuthentication();   // ✅ MUST come BEFORE Authorization
+app.UseAuthentication();
 app.UseAuthorization();
 
 // 🔹 Default route
@@ -50,4 +56,32 @@ app.MapControllerRoute(
     pattern: "{controller=Admin}/{action=Index}/{id?}"
 );
 
-app.Run();
+// ─── SEED FIRST ADMIN ───────────────────────────  ✅ BEFORE app.Run()
+using (var scope = app.Services.CreateScope())
+{
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+    string[] roles = { "Admin", "Manager", "Seller", "Supplier" };
+    foreach (var role in roles)
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new IdentityRole(role));
+    }
+
+    var adminEmail = "admin@mgi.com";
+    if (await userManager.FindByEmailAsync(adminEmail) == null)
+    {
+        var admin = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            FullName = "Super Admin"
+        };
+        await userManager.CreateAsync(admin, "Admin@123");
+        await userManager.AddToRoleAsync(admin, "Admin");
+    }
+}
+// ────────────────────────────────────────────────
+
+app.Run(); 

@@ -235,11 +235,11 @@ namespace MGI_Inventory_Management.Controllers
         {
             int pageSize = 10;
 
-            // TABLE 1 — every individual record, newest first
+            // ─── TABLE 1 — every individual record, newest first ───
             var allEntriesList = _context.Products
                 .Include(p => p.Category)
                 .OrderByDescending(p => p.PublishedDate)
-                .ToList();
+                .ToList();  // full list for grouping
 
             int totalPages1 = (int)Math.Ceiling(allEntriesList.Count / (double)pageSize);
             if (totalPages1 == 0) totalPages1 = 1;
@@ -247,11 +247,10 @@ namespace MGI_Inventory_Management.Controllers
             var pagedEntries = allEntriesList
                 .Skip((page1 - 1) * pageSize)
                 .Take(pageSize)
-                .ToList();
+                .ToList();  // paged list only for Table 1 display
 
-            // TABLE 2 — net stock summary
-            // Net qty = sum of ALL records (positive = in, negative = out).
-            var groupedList = allEntriesList
+            // ─── TABLE 2 — net stock summary (group from FULL list) ───
+            var groupedList = allEntriesList   // ✅ use full list, NOT pagedEntries
                 .GroupBy(p => new
                 {
                     p.Name,
@@ -265,14 +264,8 @@ namespace MGI_Inventory_Management.Controllers
                             m.ProductName.ToLower() == g.Key.Name.ToLower() &&
                             m.CategoryId == g.Key.CategoryId);
 
-                    // Simple sum — negatives auto-reduce
                     var netQuantity = g.Sum(x => x.Quantity);
 
-                    // Latest record that can be targeted by Edit/Delete.
-                    // Only exclude pure tombstone/audit records that were stamped by a
-                    // previous edit or delete — these are historical snapshots only.
-                    // ALL active record types (Purchased stock, Ordered stock, Edited stock,
-                    // plain adds) are valid Edit/Delete targets so the buttons always appear.
                     var latestProduct = g
                         .Where(x => !x.Description.StartsWith("Deleted stock (original")
                                  && !x.Description.StartsWith("Edited stock (old)"))
@@ -295,7 +288,10 @@ namespace MGI_Inventory_Management.Controllers
             if (totalPages2 == 0) totalPages2 = 1;
 
             ViewBag.AllEntries = pagedEntries;
-            ViewBag.GroupedProducts = groupedList.Skip((page2 - 1) * pageSize).Take(pageSize).ToList();
+            ViewBag.GroupedProducts = groupedList
+                .Skip((page2 - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
             ViewBag.CurrentPage1 = page1;
             ViewBag.TotalPages1 = totalPages1;
             ViewBag.CurrentPage2 = page2;

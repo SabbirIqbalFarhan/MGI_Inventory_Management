@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MGI_Inventory_Management.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260430234257_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260505233908_AddIdentityRoles")]
+    partial class AddIdentityRoles
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -81,6 +81,10 @@ namespace MGI_Inventory_Management.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("bit");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
