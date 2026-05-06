@@ -23,9 +23,9 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // REGISTER (Admin only — reached via Add Roles button)
+        // REGISTER (Admin + Manager only)
         // ─────────────────────────────────────────
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public IActionResult Register()
         {
             ViewBag.Roles = new List<string> { "Admin", "Manager", "Seller", "Supplier" };
@@ -33,7 +33,7 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
@@ -42,7 +42,6 @@ namespace MGI_Inventory_Management.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // Ensure role exists
             if (!await _roleManager.RoleExistsAsync(model.Role))
                 await _roleManager.CreateAsync(new IdentityRole(model.Role));
 
@@ -50,7 +49,21 @@ namespace MGI_Inventory_Management.Controllers
             {
                 UserName = model.Email,
                 Email = model.Email,
-                FullName = model.FullName
+                FullName = model.FullName,
+                FatherName = model.FatherName,
+                MotherName = model.MotherName,
+                DateOfBirth = model.DateOfBirth,
+                Gender = model.Gender,
+                NationalId = model.NationalId,
+                PhoneNumber = model.PhoneNumber,
+                EmergencyContact = model.EmergencyContact,
+                PresentAddress = model.PresentAddress,
+                PermanentAddress = model.PermanentAddress,
+                Department = model.Department,
+                Designation = model.Designation,
+                JoinDate = model.JoinDate,
+                EmployeeId = model.EmployeeId,
+                Salary = model.Salary
             };
 
             var result = await _userManager.CreateAsync(user, model.Password);
@@ -58,7 +71,7 @@ namespace MGI_Inventory_Management.Controllers
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(user, model.Role);
-                TempData["Success"] = $"User '{model.FullName}' registered as {model.Role}!";
+                TempData["Success"] = $"Employee '{model.FullName}' registered as {model.Role}!";
                 return RedirectToAction("ViewRoles");
             }
 
@@ -69,13 +82,12 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // VIEW ROLES (Admin only)
+        // VIEW ROLES (Admin + Manager only)
         // ─────────────────────────────────────────
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> ViewRoles()
         {
             var users = await _userManager.Users.ToListAsync();
-
             var userRoleList = new List<UserRoleViewModel>();
 
             foreach (var user in users)
@@ -86,7 +98,21 @@ namespace MGI_Inventory_Management.Controllers
                     UserId = user.Id,
                     FullName = user.FullName,
                     Email = user.Email ?? "",
-                    Role = roles.FirstOrDefault() ?? "No Role"
+                    Role = roles.FirstOrDefault() ?? "No Role",
+                    FatherName = user.FatherName,
+                    MotherName = user.MotherName,
+                    DateOfBirth = user.DateOfBirth,
+                    Gender = user.Gender,
+                    NationalId = user.NationalId,
+                    PhoneNumber = user.PhoneNumber,
+                    EmergencyContact = user.EmergencyContact,
+                    PresentAddress = user.PresentAddress,
+                    PermanentAddress = user.PermanentAddress,
+                    Department = user.Department,
+                    Designation = user.Designation,
+                    JoinDate = user.JoinDate,
+                    EmployeeId = user.EmployeeId,
+                    Salary = user.Salary
                 });
             }
 
@@ -94,7 +120,105 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // DELETE USER (Admin only)
+        // EDIT USER GET (Admin + Manager only)
+        // ─────────────────────────────────────────
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> EditUser(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            // Prevent editing SuperAdmin
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Contains("SuperAdmin"))
+            {
+                TempData["Error"] = "SuperAdmin cannot be edited.";
+                return RedirectToAction("ViewRoles");
+            }
+
+            var model = new EditUserViewModel
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                Email = user.Email ?? "",
+                Role = roles.FirstOrDefault() ?? "",
+                FatherName = user.FatherName,
+                MotherName = user.MotherName,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                NationalId = user.NationalId,
+                PhoneNumber = user.PhoneNumber,
+                EmergencyContact = user.EmergencyContact,
+                PresentAddress = user.PresentAddress,
+                PermanentAddress = user.PermanentAddress,
+                Department = user.Department,
+                Designation = user.Designation,
+                JoinDate = user.JoinDate,
+                EmployeeId = user.EmployeeId,
+                Salary = user.Salary
+            };
+
+            ViewBag.Roles = new List<string> { "Admin", "Manager", "Seller", "Supplier" };
+            return View(model);
+        }
+
+        // ─────────────────────────────────────────
+        // EDIT USER POST (Admin + Manager only)
+        // ─────────────────────────────────────────
+        [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditUser(EditUserViewModel model)
+        {
+            ViewBag.Roles = new List<string> { "Admin", "Manager", "Seller", "Supplier" };
+
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.FindByIdAsync(model.UserId);
+            if (user == null) return NotFound();
+
+            // Prevent editing SuperAdmin
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            if (currentRoles.Contains("SuperAdmin"))
+            {
+                TempData["Error"] = "SuperAdmin cannot be edited.";
+                return RedirectToAction("ViewRoles");
+            }
+
+            // Update fields
+            user.FullName = model.FullName;
+            user.Email = model.Email;
+            user.UserName = model.Email;
+            user.FatherName = model.FatherName;
+            user.MotherName = model.MotherName;
+            user.DateOfBirth = model.DateOfBirth;
+            user.Gender = model.Gender;
+            user.NationalId = model.NationalId;
+            user.PhoneNumber = model.PhoneNumber;
+            user.EmergencyContact = model.EmergencyContact;
+            user.PresentAddress = model.PresentAddress;
+            user.PermanentAddress = model.PermanentAddress;
+            user.Department = model.Department;
+            user.Designation = model.Designation;
+            user.JoinDate = model.JoinDate;
+            user.EmployeeId = model.EmployeeId;
+            user.Salary = model.Salary;
+
+            await _userManager.UpdateAsync(user);
+
+            // Update role
+            await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!await _roleManager.RoleExistsAsync(model.Role))
+                await _roleManager.CreateAsync(new IdentityRole(model.Role));
+            await _userManager.AddToRoleAsync(user, model.Role);
+
+            TempData["Success"] = "Employee updated successfully!";
+            return RedirectToAction("ViewRoles");
+        }
+
+        // ─────────────────────────────────────────
+        // DELETE USER (Admin only — cannot delete SuperAdmin)
         // ─────────────────────────────────────────
         [HttpPost]
         [Authorize(Roles = "Admin")]
@@ -104,10 +228,52 @@ namespace MGI_Inventory_Management.Controllers
             var user = await _userManager.FindByIdAsync(userId);
             if (user != null)
             {
+                var roles = await _userManager.GetRolesAsync(user);
+                if (roles.Contains("SuperAdmin") || roles.Contains("Admin"))
+                {
+                    TempData["Error"] = "Admin/SuperAdmin accounts cannot be deleted!";
+                    return RedirectToAction("ViewRoles");
+                }
                 await _userManager.DeleteAsync(user);
-                TempData["Success"] = "User deleted successfully!";
+                TempData["Success"] = "Employee deleted successfully!";
             }
             return RedirectToAction("ViewRoles");
+        }
+
+        // ─────────────────────────────────────────
+        // CHANGE PASSWORD (Any logged-in user — own password only)
+        // ─────────────────────────────────────────
+        [Authorize]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return RedirectToAction("Login");
+
+            var result = await _userManager.ChangePasswordAsync(
+                user, model.CurrentPassword, model.NewPassword);
+
+            if (result.Succeeded)
+            {
+                await _signInManager.RefreshSignInAsync(user);
+                TempData["Success"] = "Password changed successfully!";
+                return RedirectToAction("ChangePassword");
+            }
+
+            foreach (var error in result.Errors)
+                ModelState.AddModelError(string.Empty, error.Description);
+
+            return View(model);
         }
 
         // ─────────────────────────────────────────
@@ -118,7 +284,6 @@ namespace MGI_Inventory_Management.Controllers
         {
             if (User.Identity!.IsAuthenticated)
                 return RedirectToAction("Index", "Admin");
-
             return View();
         }
 
@@ -151,13 +316,7 @@ namespace MGI_Inventory_Management.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // ─────────────────────────────────────────
-        // ACCESS DENIED
-        // ─────────────────────────────────────────
         [AllowAnonymous]
-        public IActionResult AccessDenied()
-        {
-            return View();
-        }
+        public IActionResult AccessDenied() => View();
     }
 }

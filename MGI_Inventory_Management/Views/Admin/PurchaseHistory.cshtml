@@ -13,7 +13,24 @@
             </div>
         </div>
     </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Supplier (for monthly report)</label>
 
+            <select name="supplierFilter" class="form-select rounded-3 shadow-sm">
+                <option value="all">All Suppliers</option>
+
+                @if (ViewBag.Suppliers != null)
+                {
+                    foreach (var supplier in ViewBag.Suppliers)
+                    {
+                        <option value="@supplier.Id">@supplier.FullName</option>
+                    }
+                }
+            </select>
+        </div>
+    }
     <!-- MONTHLY INVOICE -->
     <div class="card border-0 shadow-lg rounded-4 mb-4">
         <div class="card-body p-4">
@@ -80,7 +97,39 @@
 
         </div>
     </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-3">
+            <form method="get" asp-action="OrderHistory" class="row g-3 align-items-end">
 
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Filter by Supplier</label>
+
+                    <select name="supplierFilter" class="form-select">
+                        <option value="all">-- All Suppliers --</option>
+
+                        @if (ViewBag.Suppliers != null)
+                        {
+                            foreach (var supplier in ViewBag.Suppliers)
+                            {
+                                <option value="@supplier.Id"
+                                        selected="@(ViewBag.SupplierFilter == supplier.Id ? "selected" : null)">
+                                    @supplier.FullName
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- MONTH + YEAR selects for monthly PDF (keep as-is) -->
+
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+
+            </form>
+        </div>
+    }
     <!-- PURCHASE LIST -->
     @if (ViewBag.Purchases != null && ((IEnumerable<dynamic>)ViewBag.Purchases).Any())
     {

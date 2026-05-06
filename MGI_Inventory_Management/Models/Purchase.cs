@@ -11,7 +11,11 @@ namespace MGI_Inventory_Management.Models
 
         [Required]
         public string PurchasedBy { get; set; }
-
+        // Add these fields to your existing Purchase class:
+        public string? ShopName { get; set; }
+        public string? ShopAddress { get; set; }
+        public string? ShopContact { get; set; }
+        public string? SupplierUserId { get; set; }
         public DateTime PurchaseDate { get; set; }
 
         [Required]

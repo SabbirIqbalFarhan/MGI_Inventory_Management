@@ -13,7 +13,22 @@
             </div>
         </div>
     </div>
-
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Seller (for monthly report)</label>
+            <select name="sellerFilter" class="form-select rounded-3 shadow-sm">
+                <option value="all">All Sellers</option>
+                @if (ViewBag.Sellers != null)
+                {
+                    foreach (var seller in ViewBag.Sellers)
+                    {
+                        <option value="@seller.Id">@seller.FullName</option>
+                    }
+                }
+            </select>
+        </div>
+    }
     <!-- MONTHLY INVOICE -->
     <div class="card border-0 shadow-lg rounded-4 mb-4">
         <div class="card-body p-4">
@@ -80,7 +95,34 @@
 
         </div>
     </div>
-
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-3">
+            <form method="get" asp-action="OrderHistory" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Filter by Seller</label>
+                    <select name="sellerFilter" class="form-select">
+                        <option value="all">-- All Sellers --</option>
+                        @if (ViewBag.Sellers != null)
+                        {
+                            foreach (var seller in ViewBag.Sellers)
+                            {
+                                <option value="@seller.Id"
+                                        selected="@(ViewBag.SellerFilter == seller.Id ? "selected" : null)">
+                                    @seller.FullName
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+                <!-- MONTH + YEAR selects for monthly PDF (already in your file) -->
+                <!-- Keep existing month/year dropdowns -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    }
     <!-- ORDER LIST -->
     @if (ViewBag.Orders != null && ((IEnumerable<dynamic>)ViewBag.Orders).Any())
     {

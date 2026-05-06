@@ -2,12 +2,15 @@
 
 <div class="container mt-4">
 
-    <!-- ADD PRODUCT BUTTON -->
-    <div class="text-end mb-3">
-        <a asp-controller="Admin" asp-action="AddProduct" class="btn btn-primary">
-            + Add Product
-        </a>
-    </div>
+    <!-- Add Product button — Admin/Manager only -->
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="text-end mb-3">
+            <a asp-controller="Admin" asp-action="AddProduct" class="btn btn-primary">
+                + Add Product
+            </a>
+        </div>
+    }
 
     @if (TempData["SuccessMessage"] != null)
     {
@@ -102,7 +105,11 @@
                         <th>Description</th>
                         <th>Category</th>
                         <th>Net Quantity</th>
-                        <th>Actions</th>
+                        <!-- In thead -->
+                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                        {
+                            <th>Actions</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -126,18 +133,21 @@
                                     <span class="@qtyClass">@qty</span>
                                 </td>
                                 <td>
-                                    @if ((int)item.LatestId > 0)
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                     {
-                                        <a asp-action="EditProduct" asp-route-id="@item.LatestId"
-                                           class="btn btn-sm btn-warning">Edit</a>
-
-                                        <form asp-action="DeleteProduct" method="post"
-                                              style="display:inline"
-                                              onsubmit="return confirm('This will add a Deleted stock record and remove quantity from the summary. Continue?')">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@item.LatestId" />
-                                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                        </form>
+                                        <td>
+                                            @if ((int)item.LatestId > 0)
+                                            {
+                                                <a asp-action="EditProduct" asp-route-id="@item.LatestId"
+                                                   class="btn btn-sm btn-warning">Edit</a>
+                                                <form asp-action="DeleteProduct" method="post" style="display:inline"
+                                                      onsubmit="return confirm('Delete this product?')">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@item.LatestId" />
+                                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                                </form>
+                                            }
+                                        </td>
                                     }
                                     else
                                     {

@@ -34,15 +34,34 @@
                     <div>
                         @if (order.Status == "Pending")
                         {
-                            <span class="badge bg-warning text-dark">Pending</span>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Seller"))
+                            {
+                                <a asp-action="EditOrder" asp-route-id="@order.Id"
+                                   class="btn btn-sm btn-warning">Edit</a>
+                            }
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                            {
+                                <form asp-action="DeleteOrder" method="post" style="display:inline"
+                                      onsubmit="return confirm('Delete this order?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                                <form asp-action="ApproveOrder" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                            }
                         }
-                        else if (order.Status == "Approved")
+
+                        @if (order.Status == "Approved" && (User.IsInRole("Admin") || User.IsInRole("Seller")))
                         {
-                            <span class="badge bg-success">Approved</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-primary">Delivered</span>
+                            <form asp-action="DeliverOrder" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@order.Id" />
+                                <button type="submit" class="btn btn-sm btn-primary">Mark as Delivered</button>
+                            </form>
                         }
                     </div>
                 </div>

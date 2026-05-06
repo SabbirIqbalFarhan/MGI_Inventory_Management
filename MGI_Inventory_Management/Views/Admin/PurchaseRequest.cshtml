@@ -36,15 +36,29 @@
                     <div>
                         @if (purchase.Status == "Pending")
                         {
-                            <span class="badge bg-warning text-dark">Pending</span>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Supplier"))
+                            {
+                                <form asp-action="ApprovePurchase" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@purchase.Id" />
+                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                                <form asp-action="DeletePurchase" method="post" style="display:inline"
+                                      onsubmit="return confirm('Delete this purchase?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@purchase.Id" />
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            }
                         }
-                        else if (purchase.Status == "Approved")
+
+                        @if (purchase.Status == "Approved" && (User.IsInRole("Admin") || User.IsInRole("Supplier")))
                         {
-                            <span class="badge bg-success">Approved</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-primary">Delivered</span>
+                            <form asp-action="DeliverPurchase" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@purchase.Id" />
+                                <button type="submit" class="btn btn-sm btn-primary">Mark as Delivered</button>
+                            </form>
                         }
                     </div>
                 </div>

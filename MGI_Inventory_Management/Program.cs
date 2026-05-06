@@ -32,7 +32,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
 });
-
+// After builder.Services.AddIdentity...
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = null; // Allow anonymous access to Login/Home
+});
 var app = builder.Build();
 
 // 🔹 Error handling
@@ -53,7 +57,7 @@ app.UseAuthorization();
 // 🔹 Default route
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Admin}/{action=Index}/{id?}"
+    pattern: "{controller=Home}/{action=Index}/{id?}"
 );
 
 // ─── SEED FIRST ADMIN ───────────────────────────  ✅ BEFORE app.Run()
@@ -82,6 +86,8 @@ using (var scope = app.Services.CreateScope())
         await userManager.AddToRoleAsync(admin, "Admin");
     }
 }
+
+
 // ────────────────────────────────────────────────
 
 app.Run(); 

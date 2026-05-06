@@ -3,8 +3,8 @@
 
 @{
     ViewData["Title"] = "Contact Us";
-    int currentPage = ViewBag.CurrentPage;
-    int totalPages = ViewBag.TotalPages;
+    int currentPage = ViewBag.CurrentPage ?? 1;
+    int totalPages = ViewBag.TotalPages ?? 1;
 }
 
 <style>
@@ -30,6 +30,7 @@
         padding: 20px;
         border-radius: 10px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        margin-top: 20px;
     }
 
     h3, h4 {
@@ -49,7 +50,6 @@
         margin-bottom: 15px;
         border: 1px solid #ccc;
         border-radius: 6px;
-        transition: 0.2s;
     }
 
         input:focus, textarea:focus {
@@ -86,7 +86,6 @@
     table {
         width: 100%;
         border-collapse: collapse;
-        margin-top: 20px;
     }
 
     table, th, td {
@@ -111,8 +110,9 @@
     .pagination {
         display: flex;
         gap: 8px;
-        margin-top: 20px;
+        margin-top: 15px;
         align-items: center;
+        flex-wrap: wrap;
     }
 
         .pagination a {
@@ -121,7 +121,6 @@
             border-radius: 5px;
             color: #007bff;
             text-decoration: none;
-            font-weight: 500;
         }
 
             .pagination a.active {
@@ -172,19 +171,14 @@
 
                 <form asp-controller="Home" asp-action="SendMessage" method="post">
 
-                    <label for="name">Full Name</label>
-                    <input type="text" id="name" name="Name"
-                           placeholder="Enter your full name"
-                           minlength="3" required />
+                    <label>Full Name</label>
+                    <input type="text" name="Name" minlength="3" required />
 
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="Email"
-                           placeholder="example@gmail.com" required />
+                    <label>Email Address</label>
+                    <input type="email" name="Email" required />
 
-                    <label for="message">Your Message</label>
-                    <textarea id="message" name="Message" rows="4"
-                              placeholder="Write your message here..."
-                              minlength="5" required></textarea>
+                    <label>Your Message</label>
+                    <textarea name="Message" rows="4" minlength="5" required></textarea>
 
                     <button type="submit" class="btn-submit">Send Message</button>
 
@@ -195,78 +189,80 @@
     </div>
 
     <!-- MESSAGE TABLE -->
-    <div class="contact-row" style="margin-top:40px;">
-        <div class="col-box">
-            <div class="card">
-                <h4>User Messages</h4>
+    <div class="card">
+        <h4>User Messages</h4>
 
-                @if (Model != null && Model.Any())
-                {
-                    <table>
-                        <thead>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+            if (Model != null && Model.Any())
+            {
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Message</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @{
+                            int serial = (currentPage - 1) * 10 + 1;
+                        }
+
+                        @foreach (var msg in Model)
+                        {
                             <tr>
-                                <th>#</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Message</th>
-                                <th>Date</th>
-                                <th>Action</th>
+                                <td>@serial</td>
+                                <td>@msg.Name</td>
+                                <td>@msg.Email</td>
+                                <td>@msg.Message</td>
+                                <td>@msg.CreatedAt.ToString("g")</td>
+                                <td>
+                                    <form asp-action="DeleteMessage" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@msg.Id" />
+                                        <button type="submit" class="btn-delete">Delete</button>
+                                    </form>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @{
-                                int serial = (currentPage - 1) * 10 + 1;
-                            }
-                            @foreach (var msg in Model)
-                            {
-                                <tr>
-                                    <td>@serial</td>
-                                    <td>@msg.Name</td>
-                                    <td>@msg.Email</td>
-                                    <td>@msg.Message</td>
-                                    <td>@msg.CreatedAt.ToString("g")</td>
-                                    <td>
-                                        <form asp-controller="Home"
-                                              asp-action="DeleteMessage"
-                                              method="post"
-                                              onsubmit="return confirm('Delete this message?')">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@msg.Id" />
-                                            <button type="submit" class="btn-delete">Delete</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                serial++;
-                            }
-                        </tbody>
-                    </table>
-
-                    <!-- PAGINATION -->
-                    <div class="pagination">
-                        @if (currentPage > 1)
-                        {
-                            <a href="@Url.Action("ContactUs", new { page = currentPage - 1 })">&#8592; Prev</a>
+                            serial++;
                         }
+                    </tbody>
+                </table>
 
-                        @for (int i = 1; i <= totalPages; i++)
-                        {
-                            <a href="@Url.Action("ContactUs", new { page = i })"
-                               class="@(i == currentPage ? "active" : "")">@i</a>
-                        }
+                <!-- PAGINATION -->
+                <div class="pagination">
+                    @if (currentPage > 1)
+                    {
+                        <a href="@Url.Action("ContactUs", new { page = currentPage - 1 })">← Prev</a>
+                    }
 
-                        @if (currentPage < totalPages)
-                        {
-                            <a href="@Url.Action("ContactUs", new { page = currentPage + 1 })">Next &#8594;</a>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <p class="no-data">No messages yet.</p>
-                }
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        <a href="@Url.Action("ContactUs", new { page = i })"
+                           class="@(i == currentPage ? "active" : "")">@i</a>
+                    }
 
-            </div>
-        </div>
+                    @if (currentPage < totalPages)
+                    {
+                        <a href="@Url.Action("ContactUs", new { page = currentPage + 1 })">Next →</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="no-data">No messages yet.</p>
+            }
+        }
+        else
+        {
+            <p class="no-data">You are not authorized to view messages.</p>
+        }
+
     </div>
 
 </div>

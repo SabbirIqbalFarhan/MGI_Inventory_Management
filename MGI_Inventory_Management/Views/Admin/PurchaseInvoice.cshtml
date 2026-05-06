@@ -78,7 +78,24 @@
             <div class="info-value">PUR-@Model.Id.ToString("D5")</div>
         </div>
     </div>
-
+    <!-- Add after existing info-section div -->
+@if (!string.IsNullOrEmpty(Model.ShopName) || !string.IsNullOrEmpty(Model.ShopAddress))
+{
+    <div class="info-section clearfix" style="margin-top:10px;">
+        <div class="info-box" style="width:30%;float:left;margin-right:3%;">
+            <div class="info-label">Shop Name</div>
+            <div class="info-value">@(Model.ShopName ?? "-")</div>
+        </div>
+        <div class="info-box" style="width:30%;float:left;margin-right:3%;">
+            <div class="info-label">Shop Address</div>
+            <div class="info-value">@(Model.ShopAddress ?? "-")</div>
+        </div>
+        <div class="info-box" style="width:30%;float:left;">
+            <div class="info-label">Shop Contact</div>
+            <div class="info-value">@(Model.ShopContact ?? "-")</div>
+        </div>
+    </div>
+}
     <!-- ITEMS TABLE -->
     <table>
         <thead>

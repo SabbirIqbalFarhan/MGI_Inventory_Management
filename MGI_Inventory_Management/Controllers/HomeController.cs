@@ -2,6 +2,7 @@
 using System.Linq;
 using MGI_Inventory_Management.Data;
 using MGI_Inventory_Management.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -18,37 +19,36 @@ namespace MGI_Inventory_Management.Controllers
             _context = context;
         }
 
-        public IActionResult Index()
-        {
-            return View();
-        }
+        public IActionResult Index() => View();
+        public IActionResult Privacy() => View();
+        public IActionResult VissionMissionGoal() => View();
 
-        public IActionResult Privacy()
-        {
-            return View();
-        }
-
-        // ✅ SHOW CONTACT PAGE + LOAD DATA WITH PAGINATION
+        // Anyone can view ContactUs, but only Admin/Manager see messages
         public IActionResult ContactUs(int page = 1)
         {
             int pageSize = 10;
 
-            var totalMessages = _context.ContactMessages.Count();
-            var totalPages = (int)Math.Ceiling(totalMessages / (double)pageSize);
+            if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+            {
+                var totalMessages = _context.ContactMessages.Count();
+                var totalPages = (int)Math.Ceiling(totalMessages / (double)pageSize);
 
-            var messages = _context.ContactMessages
-                .OrderByDescending(x => x.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                var messages = _context.ContactMessages
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
 
-            ViewBag.CurrentPage = page;
-            ViewBag.TotalPages = totalPages;
+                ViewBag.CurrentPage = page;
+                ViewBag.TotalPages = totalPages;
+                return View(messages);
+            }
 
-            return View(messages);
+            ViewBag.CurrentPage = 1;
+            ViewBag.TotalPages = 1;
+            return View(new List<ContactMessage>());
         }
 
-        // ✅ SAVE MESSAGE TO DATABASE
         [HttpPost]
         public IActionResult SendMessage(ContactMessage model)
         {
@@ -58,12 +58,11 @@ namespace MGI_Inventory_Management.Controllers
                 _context.SaveChanges();
                 TempData["SuccessMessage"] = "Message sent successfully!";
             }
-
             return RedirectToAction("ContactUs");
         }
 
-        // ✅ DELETE MESSAGE
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public IActionResult DeleteMessage(int id)
         {
             var message = _context.ContactMessages.Find(id);
@@ -73,22 +72,11 @@ namespace MGI_Inventory_Management.Controllers
                 _context.SaveChanges();
                 TempData["SuccessMessage"] = "Message deleted successfully!";
             }
-
             return RedirectToAction("ContactUs");
         }
 
-        public IActionResult VissionMissionGoal()
-        {
-            return View();
-        }
-
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel
-            {
-                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier
-            });
-        }
+        public IActionResult Error() =>
+            View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }
