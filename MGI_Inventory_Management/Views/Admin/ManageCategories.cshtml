@@ -18,15 +18,21 @@
     <!-- ADD CATEGORY FORM -->
     <div class="card p-4 shadow mb-4">
         <h5 style="color:#00aaff;">Add New Category</h5>
-        <form asp-action="AddCategory" method="post" class="row g-3">
+        <form asp-action="AddCategory" method="post">
             @Html.AntiForgeryToken()
-            <div class="col-md-10">
-                <label class="form-label fw-bold">Category Name</label>
-                <input type="text" name="categoryName" class="form-control"
-                       placeholder="e.g. Food & Beverage" required />
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Add</button>
+            <div class="d-flex align-items-center gap-3">
+                <div style="flex:1;">
+                    <label class="form-label fw-bold">Category Name</label>
+                    <input type="text" name="categoryName" class="form-control"
+                           style="height:38px;"
+                           placeholder="e.g. Food & Beverage" required />
+                </div>
+                <div style="flex-shrink:0; padding-top:30px;">
+                    <button type="submit" class="btn btn-primary"
+                            style="height:38px; padding:0 24px;">
+                        Add
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -61,8 +67,7 @@
                                       onsubmit="return confirm('Delete this category?')">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@cat.Id" />
-                                    <button type="submit"
-                                            class="btn btn-sm btn-danger">
+                                    <button type="submit" class="btn btn-sm btn-danger">
                                         Delete
                                     </button>
                                 </form>
@@ -77,136 +82,128 @@
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
                 @if (ViewBag.CurrentPage > 1)
                 {
-                    <a href="@Url.Action("ManageCategories",
-                                                                          new { page = ViewBag.CurrentPage - 1 })"
+                    <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage - 1 })"
                        class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
                 }
                 @for (int i = 1; i <= ViewBag.TotalPages; i++)
                 {
                     <a href="@Url.Action("ManageCategories", new { page = i })"
-                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage
-                                                                      ? "btn-primary" : "btn-outline-primary")">@i</a>
-            }
-            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-            {
-                <a href="@Url.Action("ManageCategories",
-                                                                      new { page = ViewBag.CurrentPage + 1 })"
-                   class="btn btn-sm btn-outline-primary">Next &#8594;</a>
-            }
-        </div>
-    }
-        else
-    {
-        <p class="text-muted mt-2">No categories yet.</p>
-    }
-</div>
-
-<!-- ACTIVITY LOG — Admin only -->
-<!-- ACTIVITY LOG — Admin only -->
-@if (User.IsInRole("Admin"))
-{
-    <div class="card p-4 shadow">
-        <h5 style="color:#00aaff;">
-            <i class="bi bi-journal-text me-2"></i>Category Activity Log
-        </h5>
-
-        @if (ViewBag.CategoryLogs != null &&
-             ((IEnumerable<dynamic>)ViewBag.CategoryLogs).Any())
-        {
-            <div class="mt-3">
-                @foreach (var log in ViewBag.CategoryLogs)
+                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">@i</a>
+                }
+                @if (ViewBag.CurrentPage < ViewBag.TotalPages)
                 {
-                    bool isAdded = log.Action.ToString() == "Added";
+                    <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage + 1 })"
+                       class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mt-2">No categories yet.</p>
+        }
+    </div>
 
-                    <div style="display:flex; gap:14px; align-items:flex-start;
-                                margin-bottom:14px;">
+    <!-- ACTIVITY LOG — Admin only -->
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="card p-4 shadow">
+            <h5 style="color:#00aaff;">
+                <i class="bi bi-journal-text me-2"></i>Category Activity Log
+            </h5>
 
-                        <!-- ICON CIRCLE -->
-                        <div style="width:38px; height:38px; border-radius:50%;
-                                    background:@(isAdded ? "#198754" : "#dc3545");
-                                    display:flex; align-items:center;
-                                    justify-content:center; flex-shrink:0;">
-                            <i class="bi @(isAdded ? "bi-plus-lg" : "bi-trash")"
-                               style="color:white; font-size:0.9rem;"></i>
-                        </div>
+            @if (ViewBag.CategoryLogs != null &&
+                 ((IEnumerable<dynamic>)ViewBag.CategoryLogs).Any())
+            {
+                <div class="mt-3">
+                    @foreach (var log in ViewBag.CategoryLogs)
+                    {
+                        bool isAdded = log.Action.ToString() == "Added";
 
-                        <!-- LOG BUBBLE -->
-                        <div style="flex:1; background:#f8f9fa;
-                                    border-radius:0 12px 12px 12px;
-                                    padding:10px 14px;">
-                            <div style="display:flex; justify-content:space-between;
-                                        flex-wrap:wrap; gap:4px; align-items:center;">
-                                <div>
-                                    <span class="badge @(isAdded
-                                        ? "bg-success" : "bg-danger") me-2">
-                                        @log.Action
-                                    </span>
-                                    <strong>"@log.CategoryName"</strong>
-                                    <span class="text-muted ms-2"
-                                          style="font-size:0.88rem;">
-                                        by <strong>@log.PerformedBy</strong>
-                                    </span>
-                                </div>
-                                <div style="display:flex; align-items:center; gap:12px;">
-                                    <small class="text-muted">
-                                        <i class="bi bi-clock me-1"></i>
-                                        @{ var logDate = (DateTime)log.PerformedAt; }
-                                        @logDate.ToString("dd MMM yyyy, hh:mm tt")
-                                    </small>
+                        <div style="display:flex; gap:14px; align-items:center;
+                            margin-bottom:14px;">
 
-                                    <!-- DELETE LOG BUTTON -->
-                                    <form asp-action="DeleteCategoryLog"
-                                          method="post"
-                                          onsubmit="return confirm('Delete this log entry?')"
-                                          style="margin:0;">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@log.Id" />
-                                        <button type="submit"
-                                                style="background:none; border:none;
-                                                       padding:0; color:#dc3545;
-                                                       font-size:0.8rem; cursor:pointer;
-                                                       font-weight:500;">
-                                            <i class="bi bi-trash"></i> Delete
-                                        </button>
-                                    </form>
+                            <!-- ICON CIRCLE -->
+                            <div style="width:38px; height:38px; border-radius:50%;
+                                background:@(isAdded ? "#198754" : "#dc3545");
+                                display:flex; align-items:center;
+                                justify-content:center; flex-shrink:0;">
+                                <i class="bi @(isAdded ? "bi-plus-lg" : "bi-trash")"
+                                   style="color:white; font-size:0.9rem;"></i>
+                            </div>
+
+                            <!-- LOG BUBBLE -->
+                            <div style="flex:1; background:#f8f9fa;
+                                border-radius:8px; padding:10px 14px;">
+                                <div style="display:flex; justify-content:space-between;
+                                    flex-wrap:wrap; gap:8px; align-items:center;">
+
+                                    <!-- LEFT: text -->
+                                    <div>
+                                        <span class="badge @(isAdded ? "bg-success" : "bg-danger") me-2">
+                                            @log.Action
+                                        </span>
+                                        <strong>"@log.CategoryName"</strong>
+                                        <span class="text-muted ms-2" style="font-size:0.88rem;">
+                                            by <strong>@log.PerformedBy</strong>
+                                        </span>
+                                    </div>
+
+                                    <!-- FIX 2: RIGHT — time + delete, inline-flex aligned -->
+                                    <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                                        <small class="text-muted" style="white-space:nowrap;">
+                                            <i class="bi bi-clock me-1"></i>
+                                            @{
+                                                var logDate = (DateTime)log.PerformedAt;
+                                            }
+                                            @logDate.ToString("dd MMM yyyy, hh:mm tt")
+                                        </small>
+
+                                        <form asp-action="DeleteCategoryLog" method="post"
+                                              onsubmit="return confirm('Delete this log entry?')"
+                                              style="margin:0; padding:0; display:inline-flex; align-items:center;">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@log.Id" />
+                                            <button type="submit"
+                                                    style="background:none; border:none; padding:0;
+                                                color:#dc3545; font-size:0.8rem;
+                                                cursor:pointer; font-weight:500;
+                                                display:inline-flex; align-items:center; gap:4px;
+                                                line-height:1;">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+
                                 </div>
                             </div>
                         </div>
+                    }
+                </div>
 
-                    </div>
-                }
-            </div>
-
-            <!-- LOG PAGINATION -->
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-                @if (ViewBag.LogCurrentPage > 1)
-                {
-                    <a href="@Url.Action("ManageCategories",
-                               new { page = ViewBag.CurrentPage,
-                                     logPage = ViewBag.LogCurrentPage - 1 })"
-                       class="btn btn-sm btn-outline-secondary">&#8592; Prev</a>
-                }
-                @for (int i = 1; i <= ViewBag.LogTotalPages; i++)
-                {
-                    <a href="@Url.Action("ManageCategories",
-                               new { page = ViewBag.CurrentPage, logPage = i })"
-                       class="btn btn-sm @(i == (int)ViewBag.LogCurrentPage
-                           ? "btn-secondary" : "btn-outline-secondary")">@i</a>
-                }
-                @if (ViewBag.LogCurrentPage < ViewBag.LogTotalPages)
-                {
-                    <a href="@Url.Action("ManageCategories",
-                               new { page = ViewBag.CurrentPage,
-                                     logPage = ViewBag.LogCurrentPage + 1 })"
-                       class="btn btn-sm btn-outline-secondary">Next &#8594;</a>
-                }
-            </div>
-        }
-        else
-        {
-            <p class="text-muted mt-2">No activity recorded yet.</p>
-        }
-    </div>
-}
+                <!-- FIX 3: Log pagination — grey → blue -->
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+                    @if (ViewBag.LogCurrentPage > 1)
+                    {
+                        <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage, logPage = ViewBag.LogCurrentPage - 1 })"
+                           class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+                    }
+                    @for (int i = 1; i <= ViewBag.LogTotalPages; i++)
+                    {
+                        <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage, logPage = i })"
+                           class="btn btn-sm @(i == (int)ViewBag.LogCurrentPage ? "btn-primary" : "btn-outline-primary")">@i</a>
+                    }
+                    @if (ViewBag.LogCurrentPage < ViewBag.LogTotalPages)
+                    {
+                        <a href="@Url.Action("ManageCategories", new { page = ViewBag.CurrentPage, logPage = ViewBag.LogCurrentPage + 1 })"
+                           class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted mt-2">No activity recorded yet.</p>
+            }
+        </div>
+    }
 
 </div>
