@@ -82,66 +82,6 @@
         font-weight: 500;
         margin-bottom: 10px;
     }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    table, th, td {
-        border: 1px solid #ddd;
-    }
-
-    th {
-        background: #333;
-        color: white;
-        padding: 10px;
-    }
-
-    td {
-        padding: 10px;
-    }
-
-    .no-data {
-        color: gray;
-        margin-top: 10px;
-    }
-
-    .pagination {
-        display: flex;
-        gap: 8px;
-        margin-top: 15px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-        .pagination a {
-            padding: 7px 14px;
-            border: 1px solid #007bff;
-            border-radius: 5px;
-            color: #007bff;
-            text-decoration: none;
-        }
-
-            .pagination a.active {
-                background: #007bff;
-                color: white;
-            }
-
-            .pagination a:hover {
-                background: #0056b3;
-                color: white;
-            }
-
-    .btn-delete {
-        background-color: #dc3545;
-        padding: 5px 12px;
-        font-size: 13px;
-    }
-
-        .btn-delete:hover {
-            background-color: #a71d2a;
-        }
 </style>
 
 <div class="contact-container">
@@ -188,81 +128,121 @@
 
     </div>
 
-    <!-- MESSAGE TABLE -->
-    <div class="card">
-        <h4>User Messages</h4>
+    <!-- MESSAGE SECTION — Admin + Manager only -->
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="card" style="margin-top: 30px;">
+            <h4 style="margin-bottom: 20px; display:flex; align-items:center; gap:10px;">
+                <i class="bi bi-chat-dots-fill" style="color:#007bff;"></i>
+                User Messages
+                @if (Model != null && Model.Any())
+                {
+                    <span style="font-size:0.85rem; background:#007bff; color:white;
+                    border-radius:20px; padding:2px 10px;
+                    font-weight:500; line-height:1.5;">@Model.Count</span>
+                }
+            </h4>
 
-        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-        {
-            if (Model != null && Model.Any())
+            @if (Model != null && Model.Any())
             {
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Message</th>
-                            <th>Date</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
+                @foreach (var msg in Model)
+                {
+                    <div style="display:flex; gap:14px; margin-bottom:20px;
+                        align-items:flex-start;">
 
-                    <tbody>
-                        @{
-                            int serial = (currentPage - 1) * 10 + 1;
-                        }
+                        <!-- AVATAR -->
+                        <div style="width:42px; height:42px; border-radius:50%;
+                            background: linear-gradient(135deg,#007bff,#00aaff);
+                            display:flex; align-items:center; justify-content:center;
+                            color:white; font-weight:700; font-size:1rem;
+                            flex-shrink:0;">
+                            @msg.Name.Substring(0, 1).ToUpper()
+                        </div>
 
-                        @foreach (var msg in Model)
-                        {
-                            <tr>
-                                <td>@serial</td>
-                                <td>@msg.Name</td>
-                                <td>@msg.Email</td>
-                                <td>@msg.Message</td>
-                                <td>@msg.CreatedAt.ToString("g")</td>
-                                <td>
-                                    <form asp-action="DeleteMessage" method="post">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@msg.Id" />
-                                        <button type="submit" class="btn-delete">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            serial++;
-                        }
-                    </tbody>
-                </table>
+                        <!-- BUBBLE -->
+                        <div style="flex:1;">
+                            <div style="background:#f0f2f5; border-radius:0 14px 14px 14px;
+                                padding:12px 16px;">
+
+                                <!-- NAME + EMAIL + TIME -->
+                                <div style="display:flex; justify-content:space-between;
+                                    align-items:center; flex-wrap:wrap;
+                                    gap:6px; margin-bottom:6px;">
+                                    <div>
+                                        <span style="font-weight:700; font-size:0.95rem;
+                                        color:#1a1a1a;">@msg.Name</span>
+                                        <span style="font-size:0.8rem; color:#888;
+                                        margin-left:8px;">@msg.Email</span>
+                                    </div>
+                                    <span style="font-size:0.78rem; color:#aaa;">
+                                        <i class="bi bi-clock"></i>
+                                        @msg.CreatedAt.ToString("dd MMM yyyy, hh:mm tt")
+                                    </span>
+                                </div>
+
+                                <!-- MESSAGE TEXT -->
+                                <p style="margin:0; font-size:0.92rem; color:#333;
+                                line-height:1.6;">@msg.Message</p>
+                            </div>
+
+                            <!-- DELETE BUTTON below bubble -->
+                            <form asp-controller="Home" asp-action="DeleteMessage"
+                                  method="post"
+                                  onsubmit="return confirm('Delete this message?')"
+                                  style="margin-top:5px; margin-left:4px;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@msg.Id" />
+                                <button type="submit"
+                                        style="background:none; border:none; padding:0;
+                                    color:#dc3545; font-size:0.8rem;
+                                    cursor:pointer; font-weight:500;">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- DIVIDER -->
+                    <hr style="border:none; border-top:1px solid #eee;
+                    margin:0 0 20px 56px;" />
+                }
 
                 <!-- PAGINATION -->
-                <div class="pagination">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
                     @if (currentPage > 1)
                     {
-                        <a href="@Url.Action("ContactUs", new { page = currentPage - 1 })">← Prev</a>
+                        <a href="@Url.Action("ContactUs", new { page = currentPage - 1 })"
+                           style="padding:6px 14px; border:1px solid #007bff;
+                        border-radius:5px; color:#007bff;
+                        text-decoration:none;">← Prev</a>
                     }
 
                     @for (int i = 1; i <= totalPages; i++)
                     {
                         <a href="@Url.Action("ContactUs", new { page = i })"
-                           class="@(i == currentPage ? "active" : "")">@i</a>
+                               style="padding:6px 14px; border:1px solid #007bff;
+                            border-radius:5px; text-decoration:none;
+                            @(i == currentPage
+                                                         ? "background:#007bff; color:white;"
+                                                         : "color:#007bff;")">
+                            @i
+                        </a>
                     }
 
                     @if (currentPage < totalPages)
                     {
-                        <a href="@Url.Action("ContactUs", new { page = currentPage + 1 })">Next →</a>
+                        <a href="@Url.Action("ContactUs", new { page = currentPage + 1 })"
+                           style="padding:6px 14px; border:1px solid #007bff;
+                        border-radius:5px; color:#007bff;
+                        text-decoration:none;">Next →</a>
                     }
                 </div>
             }
             else
             {
-                <p class="no-data">No messages yet.</p>
+                <p style="color:gray;">No messages yet.</p>
             }
-        }
-        else
-        {
-            <p class="no-data">You are not authorized to view messages.</p>
-        }
-
-    </div>
+        </div>
+    }
 
 </div>
