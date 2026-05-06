@@ -14,7 +14,7 @@ namespace MGI_Inventory_Management.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Purchase> Purchases { get; set; }
         public DbSet<PurchaseItem> PurchaseItems { get; set; }
-
+        public DbSet<CategoryLog> CategoryLogs { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

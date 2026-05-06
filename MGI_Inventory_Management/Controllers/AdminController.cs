@@ -30,9 +30,11 @@ namespace MGI_Inventory_Management.Controllers
         // MANAGE CATEGORIES — Admin + Manager only
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
-        public IActionResult ManageCategories(int page = 1)
+        public IActionResult ManageCategories(int page = 1, int logPage = 1)
         {
             int pageSize = 10;
+
+            // ── CATEGORIES ──
             var all = _context.Categories.ToList();
             int totalPages = (int)Math.Ceiling(all.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
@@ -40,7 +42,38 @@ namespace MGI_Inventory_Management.Controllers
             ViewBag.Categories = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
+
+            // ── LOGS ──
+            var allLogs = _context.CategoryLogs
+                .OrderByDescending(l => l.PerformedAt)
+                .ToList();
+
+            int totalLogPages = (int)Math.Ceiling(allLogs.Count / (double)pageSize);
+            if (totalLogPages == 0) totalLogPages = 1;
+
+            ViewBag.CategoryLogs = allLogs
+                .Skip((logPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            ViewBag.LogCurrentPage = logPage;
+            ViewBag.LogTotalPages = totalLogPages;
+
             return View();
+        }
+        //DELETE LOG ACTION
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public IActionResult DeleteCategoryLog(int id)
+        {
+            var log = _context.CategoryLogs.Find(id);
+            if (log != null)
+            {
+                _context.CategoryLogs.Remove(log);
+                _context.SaveChanges();
+                TempData["CategorySuccess"] = "Log deleted!";
+            }
+            return RedirectToAction("ManageCategories");
         }
 
         [HttpPost]
@@ -50,14 +83,35 @@ namespace MGI_Inventory_Management.Controllers
         {
             if (!string.IsNullOrWhiteSpace(categoryName))
             {
-                bool exists = _context.Categories.Any(c => c.Name.ToLower() == categoryName.ToLower());
+                bool exists = _context.Categories
+                    .Any(c => c.Name.ToLower() == categoryName.ToLower());
+
                 if (!exists)
                 {
-                    _context.Categories.Add(new Category { Name = categoryName });
+                    string addedBy = GetUserLabel();
+
+                    _context.Categories.Add(new Category
+                    {
+                        Name = categoryName,
+                        AddedBy = addedBy,
+                        AddedAt = DateTime.Now
+                    });
+
+                    _context.CategoryLogs.Add(new CategoryLog
+                    {
+                        Action = "Added",
+                        CategoryName = categoryName,
+                        PerformedBy = addedBy,
+                        PerformedAt = DateTime.Now
+                    });
+
                     _context.SaveChanges();
                     TempData["CategorySuccess"] = "Category added successfully!";
                 }
-                else TempData["CategoryError"] = "This category already exists!";
+                else
+                {
+                    TempData["CategoryError"] = "This category already exists!";
+                }
             }
             return RedirectToAction("ManageCategories");
         }
@@ -75,9 +129,20 @@ namespace MGI_Inventory_Management.Controllers
 
                 if (hasProducts || hasMaster)
                 {
-                    TempData["CategoryError"] = "Cannot delete — products exist under this category!";
+                    TempData["CategoryError"] =
+                        "Cannot delete — products exist under this category!";
                     return RedirectToAction("ManageCategories");
                 }
+
+                string deletedBy = GetUserLabel();
+
+                _context.CategoryLogs.Add(new CategoryLog
+                {
+                    Action = "Deleted",
+                    CategoryName = category.Name,
+                    PerformedBy = deletedBy,
+                    PerformedAt = DateTime.Now
+                });
 
                 _context.Categories.Remove(category);
                 _context.SaveChanges();
@@ -965,6 +1030,29 @@ namespace MGI_Inventory_Management.Controllers
                 PageMargins = new Rotativa.AspNetCore.Options.Margins(15, 15, 15, 15),
                 CustomSwitches = "--background --print-media-type"
             };
+        }
+        private string GetUserLabel()
+        {
+            var user = _context.Users
+                .OfType<ApplicationUser>()
+                .FirstOrDefault(u => u.UserName == User.Identity!.Name);
+
+            if (user == null) return User.Identity!.Name ?? "Unknown";
+
+            var roleId = _context.UserRoles
+                .FirstOrDefault(ur => ur.UserId == user.Id)?.RoleId;
+
+            var roleName = roleId != null
+                ? _context.Roles.FirstOrDefault(r => r.Id == roleId)?.Name ?? ""
+                : "";
+
+            string fullName = !string.IsNullOrEmpty(user.FullName)
+                ? user.FullName
+                : user.UserName ?? "Unknown";
+
+            return string.IsNullOrEmpty(roleName)
+                ? fullName
+                : $"{fullName} ({roleName})";
         }
     }
 }
