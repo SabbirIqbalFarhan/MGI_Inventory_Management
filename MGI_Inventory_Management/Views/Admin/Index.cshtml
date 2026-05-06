@@ -44,8 +44,9 @@
         </a>
     </div>
 }
-
-        <div class="col-lg-3 col-md-6">
+@if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+{
+    <div class="col-lg-3 col-md-6">
             <a asp-controller="Admin" asp-action="AddProduct" class="text-decoration-none">
                 <div class="dashboard-card border-primary">
                     <i class="bi bi-plus-circle fs-3 text-primary"></i>
@@ -54,6 +55,8 @@
                 </div>
             </a>
         </div>
+}
+        
 
         <div class="col-lg-3 col-md-6">
             <a asp-controller="Admin" asp-action="ViewProduct" class="text-decoration-none">
