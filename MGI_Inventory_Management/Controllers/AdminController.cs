@@ -155,57 +155,158 @@ namespace MGI_Inventory_Management.Controllers
         // MANAGE MASTER PRODUCTS — Admin + Manager only
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
-        public IActionResult ManageProducts(int page = 1)
+        public IActionResult ManageProducts(int page = 1, int logPage = 1)
         {
             int pageSize = 10;
-            var allMasters = _context.ProductMasters.Include(p => p.Category).ToList();
+
+            // ── PRODUCTS ──
+            var allMasters = _context.ProductMasters
+                .Include(p => p.Category)
+                .ToList();
+
             int totalPages = (int)Math.Ceiling(allMasters.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
 
             ViewBag.Categories = _context.Categories.ToList();
-            ViewBag.ProductMasters = allMasters.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            ViewBag.ProductMasters = allMasters
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
+
+            // ── LOGS ──
+            var allLogs = _context.ProductMasterLogs
+                .OrderByDescending(l => l.PerformedAt)
+                .ToList();
+
+            int totalLogPages = (int)Math.Ceiling(allLogs.Count / (double)pageSize);
+            if (totalLogPages == 0) totalLogPages = 1;
+
+            ViewBag.ProductMasterLogs = allLogs
+                .Skip((logPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            ViewBag.LogCurrentPage = logPage;
+            ViewBag.LogTotalPages = totalLogPages;
+
             return View();
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
-        public IActionResult AddProductMaster(string productName, int categoryId, string description)
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> AddProductMaster(
+    string productName, int categoryId,
+    string description, IFormFile? imageFile)
         {
             if (!string.IsNullOrWhiteSpace(productName) && categoryId > 0)
             {
                 bool exists = _context.ProductMasters
-                    .Any(p => p.ProductName.ToLower() == productName.ToLower() && p.CategoryId == categoryId);
+                    .Any(p => p.ProductName.ToLower() == productName.ToLower()
+                           && p.CategoryId == categoryId);
 
                 if (!exists)
                 {
+                    string addedBy = GetUserLabel();
+                    var category = _context.Categories.Find(categoryId);
+                    string categoryName = category?.Name ?? "";
+
+                    // ── HANDLE IMAGE UPLOAD ────────────────
+                    string? imagePath = null;
+                    if (imageFile != null && imageFile.Length > 0)
+                    {
+                        string uploadsFolder = Path.Combine(
+                            Directory.GetCurrentDirectory(),
+                            "wwwroot", "uploads", "products");
+
+                        Directory.CreateDirectory(uploadsFolder);
+
+                        string uniqueFileName = Guid.NewGuid().ToString()
+                            + Path.GetExtension(imageFile.FileName);
+
+                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await imageFile.CopyToAsync(stream);
+                        }
+
+                        imagePath = "/uploads/products/" + uniqueFileName;
+                    }
+
                     _context.ProductMasters.Add(new ProductMaster
                     {
                         ProductName = productName,
                         CategoryId = categoryId,
-                        Description = description ?? string.Empty
+                        Description = description ?? string.Empty,
+                        AddedBy = addedBy,
+                        AddedAt = DateTime.Now,
+                        ImagePath = imagePath
                     });
+
+                    _context.ProductMasterLogs.Add(new ProductMasterLog
+                    {
+                        Action = "Added",
+                        ProductName = productName,
+                        CategoryName = categoryName,
+                        PerformedBy = addedBy,
+                        PerformedAt = DateTime.Now,
+                        ImagePath = imagePath
+                    });
+
                     _context.SaveChanges();
                     TempData["MasterSuccess"] = "Product added to master list!";
                 }
-                else TempData["MasterError"] = "This product already exists in this category!";
+                else
+                {
+                    TempData["MasterError"] = "This product already exists in this category!";
+                }
             }
             return RedirectToAction("ManageProducts");
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,Manager")]
         public IActionResult DeleteProductMaster(int id)
         {
-            var item = _context.ProductMasters.Find(id);
+            var item = _context.ProductMasters
+                .Include(p => p.Category)
+                .FirstOrDefault(p => p.Id == id);
+
             if (item != null)
             {
+                string deletedBy = GetUserLabel();
+
+                _context.ProductMasterLogs.Add(new ProductMasterLog
+                {
+                    Action = "Deleted",
+                    ProductName = item.ProductName,
+                    CategoryName = item.Category?.Name ?? "",
+                    PerformedBy = deletedBy,
+                    PerformedAt = DateTime.Now,
+                    ImagePath = item.ImagePath  // ← carry image to log
+                });
+
                 _context.ProductMasters.Remove(item);
                 _context.SaveChanges();
                 TempData["MasterSuccess"] = "Product removed from master list!";
+            }
+            return RedirectToAction("ManageProducts");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public IActionResult DeleteProductMasterLog(int id)
+        {
+            var log = _context.ProductMasterLogs.Find(id);
+            if (log != null)
+            {
+                _context.ProductMasterLogs.Remove(log);
+                _context.SaveChanges();
+                TempData["MasterSuccess"] = "Log deleted!";
             }
             return RedirectToAction("ManageProducts");
         }

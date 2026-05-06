@@ -32,15 +32,18 @@
         </div>
     }
 
-        <div class="col-lg-3 col-md-6">
-            <a asp-controller="Admin" asp-action="ManageProducts" class="text-decoration-none">
-                <div class="dashboard-card border-primary">
-                    <i class="bi bi-card-list fs-3 text-primary"></i>
-                    <h6 class="fw-bold mt-2">Master Products</h6>
-                    <small class="text-muted">Manage product list</small>
-                </div>
-            </a>
-        </div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+{
+    <div class="col-lg-3 col-md-6">
+        <a asp-controller="Admin" asp-action="ManageProducts" class="text-decoration-none">
+            <div class="dashboard-card border-primary">
+                <i class="bi bi-card-list fs-3 text-primary"></i>
+                <h6 class="fw-bold mt-2">Master Products</h6>
+                <small class="text-muted">Manage product list</small>
+            </div>
+        </a>
+    </div>
+}
 
         <div class="col-lg-3 col-md-6">
             <a asp-controller="Admin" asp-action="AddProduct" class="text-decoration-none">

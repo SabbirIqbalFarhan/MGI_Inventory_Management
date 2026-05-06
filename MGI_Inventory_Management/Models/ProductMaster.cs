@@ -15,8 +15,14 @@ namespace MGI_Inventory_Management.Models
 
         public Category? Category { get; set; }
 
-        // ✅ Added Description
         [Required]
         public string Description { get; set; } = string.Empty;
+
+        // ── TRACKING ──────────────────────────────
+        public string? AddedBy { get; set; }
+        public DateTime? AddedAt { get; set; }
+
+        // ── IMAGE ─────────────────────────────────
+        public string? ImagePath { get; set; }
     }
 }
