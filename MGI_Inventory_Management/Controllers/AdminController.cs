@@ -277,6 +277,20 @@ namespace MGI_Inventory_Management.Controllers
 
             if (item != null)
             {
+                // Check net quantity of this product in Products table
+                var netQuantity = _context.Products
+                    .Where(p => p.Name == item.ProductName && p.CategoryId == item.CategoryId
+                             && !p.Description.StartsWith("Edited stock (old)")
+                             && !p.Description.StartsWith("Stock removed (original)"))
+                    .Sum(p => (int?)p.Quantity) ?? 0;
+
+                if (netQuantity != 0)
+                {
+                    TempData["MasterError"] =
+                        $"Cannot delete — \"{item.ProductName}\" exists! still has {netQuantity} units in stock. ";
+                    return RedirectToAction("ManageProducts");
+                }
+
                 string deletedBy = GetUserLabel();
 
                 _context.ProductMasterLogs.Add(new ProductMasterLog
@@ -286,7 +300,7 @@ namespace MGI_Inventory_Management.Controllers
                     CategoryName = item.Category?.Name ?? "",
                     PerformedBy = deletedBy,
                     PerformedAt = DateTime.Now,
-                    ImagePath = item.ImagePath  // ← carry image to log
+                    ImagePath = item.ImagePath
                 });
 
                 _context.ProductMasters.Remove(item);
@@ -318,21 +332,33 @@ namespace MGI_Inventory_Management.Controllers
         public IActionResult AddProduct()
         {
             ViewBag.Categories = _context.Categories.ToList();
+            ViewBag.ProductMasters = _context.ProductMasters
+                .Include(p => p.Category)
+                .ToList();
             return View();
         }
 
         [HttpPost]
+        [ActionName("AddProduct")]
         [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
-        public IActionResult AddProduct(AddProduct product)
+        public IActionResult AddProductPost(AddProduct product)
         {
             ViewBag.Categories = _context.Categories.ToList();
+            ViewBag.ProductMasters = _context.ProductMasters
+                .Include(p => p.Category)
+                .ToList();
+
             ModelState.Remove("Category");
 
             if (!ModelState.IsValid)
-                return View(product);
+                return View("AddProduct", product);
+
+            string performedBy = GetUserLabel();
 
             product.PublishedDate = DateTime.Now;
+            product.Description = $"Stock added by {performedBy}";
+
             _context.Products.Add(product);
             _context.SaveChanges();
 
@@ -399,10 +425,12 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // VIEW PRODUCTS — Admin + Manager + Seller
+        // VIEW PRODUCTS — Admin + Manager + Seller + Supplier
         // ─────────────────────────────────────────
-        [Authorize(Roles = "Admin,Manager,Seller")]
-        public IActionResult ViewProduct(int page1 = 1, int page2 = 1)
+        // Change the Authorize attribute to include Supplier
+        [Authorize(Roles = "Admin,Manager,Seller,Supplier")]
+        public IActionResult ViewProduct(int page1 = 1, int page2 = 1,
+    int? filterCategory = null, string? searchName = null)
         {
             int pageSize = 10;
 
@@ -414,17 +442,47 @@ namespace MGI_Inventory_Management.Controllers
             int totalPages1 = (int)Math.Ceiling(allEntriesList.Count / (double)pageSize);
             if (totalPages1 == 0) totalPages1 = 1;
 
-            var pagedEntries = allEntriesList.Skip((page1 - 1) * pageSize).Take(pageSize).ToList();
+            var pagedEntries = allEntriesList
+                .Skip((page1 - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
-            var groupedList = allEntriesList
-                .GroupBy(p => new { p.Name, p.CategoryId, CategoryName = p.Category != null ? p.Category.Name : "" })
+            var masterImageMap = _context.ProductMasters
+                .Where(m => m.ImagePath != null)
+                .GroupBy(m => m.ProductName.ToLower())
+                .ToDictionary(g => g.Key, g => g.First().ImagePath!);
+
+            ViewBag.ProductMasterMap = masterImageMap;
+
+            var groupedQuery = allEntriesList
+                .GroupBy(p => new
+                {
+                    p.Name,
+                    p.CategoryId,
+                    CategoryName = p.Category != null ? p.Category.Name : ""
+                })
                 .Select(g =>
                 {
                     var master = _context.ProductMasters
-                        .FirstOrDefault(m => m.ProductName.ToLower() == g.Key.Name.ToLower() && m.CategoryId == g.Key.CategoryId);
+                        .FirstOrDefault(m =>
+                            m.ProductName.ToLower() == g.Key.Name.ToLower()
+                            && m.CategoryId == g.Key.CategoryId);
 
-                    var latestProduct = g
-                        .Where(x => !x.Description.StartsWith("Deleted stock (original") && !x.Description.StartsWith("Edited stock (old)"))
+                    // Active = records that represent real stock movements
+                    var activeRecords = g.Where(x =>
+                        !x.Description.StartsWith("Stock removed by"));
+
+                    var latestActive = activeRecords
+                        .OrderByDescending(x => x.PublishedDate)
+                        .FirstOrDefault();
+
+                    // Net qty from all active records
+                    var netQty = activeRecords
+                        .Sum(x => (int?)x.Quantity) ?? 0;
+
+                    // Latest price from records that have prices
+                    var latestWithPrice = activeRecords
+                        .Where(x => x.SellingPrice > 0 || x.PurchaseRate > 0)
                         .OrderByDescending(x => x.PublishedDate)
                         .FirstOrDefault();
 
@@ -432,22 +490,42 @@ namespace MGI_Inventory_Management.Controllers
                     {
                         ProductName = g.Key.Name,
                         Category = g.Key.CategoryName,
-                        Description = master != null ? master.Description : "-",
-                        TotalQuantity = g.Sum(x => x.Quantity),
                         CategoryId = g.Key.CategoryId,
-                        LatestId = latestProduct != null ? latestProduct.Id : 0
+                        Description = master != null ? master.Description : "-",
+                        ImagePath = master?.ImagePath,
+                        TotalQuantity = netQty,
+                        LatestId = latestActive?.Id ?? 0,
+                        SellingPrice = latestWithPrice?.SellingPrice ?? 0,
+                        PurchaseRate = latestWithPrice?.PurchaseRate ?? 0
                     };
-                }).ToList();
+                })
+                .AsEnumerable();
 
-            int totalPages2 = (int)Math.Ceiling(groupedList.Count / (double)pageSize);
+            // Hide cards where no active records remain (fully deleted)
+            groupedQuery = groupedQuery.Where(x => x.LatestId > 0);
+
+            if (filterCategory.HasValue && filterCategory > 0)
+                groupedQuery = groupedQuery.Where(x => x.CategoryId == filterCategory);
+
+            if (!string.IsNullOrWhiteSpace(searchName))
+                groupedQuery = groupedQuery.Where(x =>
+                    x.ProductName.ToLower().Contains(searchName.ToLower()));
+
+            var filteredList = groupedQuery.ToList();
+
+            int totalPages2 = (int)Math.Ceiling(filteredList.Count / (double)pageSize);
             if (totalPages2 == 0) totalPages2 = 1;
 
             ViewBag.AllEntries = pagedEntries;
-            ViewBag.GroupedProducts = groupedList.Skip((page2 - 1) * pageSize).Take(pageSize).ToList();
+            ViewBag.GroupedProducts = filteredList
+                .Skip((page2 - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.CurrentPage1 = page1;
             ViewBag.TotalPages1 = totalPages1;
             ViewBag.CurrentPage2 = page2;
             ViewBag.TotalPages2 = totalPages2;
+            ViewBag.Categories = _context.Categories.ToList();
+            ViewBag.FilterCategory = filterCategory ?? 0;
+            ViewBag.SearchName = searchName ?? "";
 
             return View();
         }
@@ -492,21 +570,42 @@ namespace MGI_Inventory_Management.Controllers
             var existing = _context.Products.Find(product.Id);
             if (existing == null) return NotFound();
 
-            existing.Description = $"Edited stock (old) — was {existing.Quantity} units @ {existing.SellingPrice}";
-            _context.Products.Update(existing);
+            string performedBy = GetUserLabel();
 
+            // Calculate current net quantity excluding log-only records
+            var currentNetQty = _context.Products
+                .Where(p => p.Name == existing.Name
+                         && p.CategoryId == existing.CategoryId
+                         && !p.Description.StartsWith("Edited stock (old)")
+                         && !p.Description.StartsWith("Stock removed (original)")
+                         && !p.Description.StartsWith("Stock removed by"))
+                .Sum(p => (int?)p.Quantity) ?? 0;
+
+            int newNetQty = currentNetQty + product.Quantity;
+
+            if (newNetQty < 0)
+            {
+                TempData["ErrorMessage"] =
+                    $"Cannot update — quantity would become {newNetQty}. " +
+                    $"Current stock is {currentNetQty} units. " +
+                    $"You cannot subtract more than the available quantity.";
+                return RedirectToAction("ViewProduct");
+            }
+
+            // Always insert a brand new record — never touch existing ones
             _context.Products.Add(new AddProduct
             {
                 Name = existing.Name,
-                CategoryId = product.CategoryId,
+                CategoryId = existing.CategoryId,
                 Quantity = product.Quantity,
                 PurchaseRate = product.PurchaseRate,
                 SellingPrice = product.SellingPrice,
-                Description = "Edited stock",
+                Description = $"Stock edited by {performedBy}",
                 PublishedDate = DateTime.Now
             });
 
             _context.SaveChanges();
+
             TempData["SuccessMessage"] = "Product updated successfully!";
             return RedirectToAction("ViewProduct");
         }
@@ -519,39 +618,79 @@ namespace MGI_Inventory_Management.Controllers
             var product = _context.Products.Find(id);
             if (product == null) return NotFound();
 
+            string performedBy = GetUserLabel();
+            string productName = product.Name;
+            int categoryId = product.CategoryId;
+            decimal lastPurchaseRate = product.PurchaseRate;
+            decimal lastSellingPrice = product.SellingPrice;
+
+            // Get net quantity
             var netQuantity = _context.Products
-                .Where(p => p.Name == product.Name && p.CategoryId == product.CategoryId)
+                .Where(p => p.Name == productName
+                         && p.CategoryId == categoryId
+                         && !p.Description.StartsWith("Stock removed by"))
                 .Sum(p => (int?)p.Quantity) ?? 0;
 
-            product.Description = $"Deleted stock (original — {product.Quantity} units)";
-            _context.Products.Update(product);
-
-            if (netQuantity != 0)
+            // Step 1: Insert NEW log record with negative offset to zero out stock
+            _context.Products.Add(new AddProduct
             {
-                _context.Products.Add(new AddProduct
-                {
-                    Name = product.Name,
-                    CategoryId = product.CategoryId,
-                    Quantity = -netQuantity,
-                    PurchaseRate = product.PurchaseRate,
-                    SellingPrice = product.SellingPrice,
-                    Description = "Deleted stock",
-                    PublishedDate = DateTime.Now
-                });
-            }
+                Name = productName,
+                CategoryId = categoryId,
+                Quantity = netQuantity != 0 ? -netQuantity : 0,
+                PurchaseRate = 0,
+                SellingPrice = 0,
+                Description = $"Stock removed by {performedBy}",
+                PublishedDate = DateTime.Now
+            });
 
             _context.SaveChanges();
+
+            // Step 2: Remove all records EXCEPT the new log record
+            var newLogId = _context.Products
+                .Where(p => p.Name == productName
+                         && p.CategoryId == categoryId
+                         && p.Description == $"Stock removed by {performedBy}")
+                .OrderByDescending(p => p.PublishedDate)
+                .Select(p => p.Id)
+                .First();
+
+            var toDelete = _context.Products
+                .Where(p => p.Name == productName
+                         && p.CategoryId == categoryId
+                         && p.Id != newLogId)
+                .ToList();
+
+            _context.Products.RemoveRange(toDelete);
+            _context.SaveChanges();
+
             TempData["SuccessMessage"] = "Product deleted successfully!";
+            return RedirectToAction("ViewProduct");
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ValidateAntiForgeryToken]
+        public IActionResult DeleteProductEntry(int id)
+        {
+            var entry = _context.Products.Find(id);
+            if (entry != null)
+            {
+                _context.Products.Remove(entry);
+                _context.SaveChanges();
+                TempData["SuccessMessage"] = "Entry deleted successfully!";
+            }
             return RedirectToAction("ViewProduct");
         }
 
         // ─────────────────────────────────────────
         // MAKE ORDER — Admin + Seller
         // ─────────────────────────────────────────
-        [Authorize(Roles = "Admin,Seller")]
-        public IActionResult Order()
+        [Authorize(Roles = "Admin,Seller,Manager")]
+        public IActionResult Order(int? categoryId = null, string? productName = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
+            ViewBag.PrefilledCategoryId = categoryId;
+            ViewBag.PrefilledProductName = productName;
             return View();
         }
 

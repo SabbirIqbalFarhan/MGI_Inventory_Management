@@ -6,6 +6,11 @@
         <h4 class="mb-0">Edit Product</h4>
     </div>
 
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
     <div class="card p-4 shadow">
 
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
@@ -14,19 +19,10 @@
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
 
-            <!-- Name: readonly — editing is tracked by product group in Table 2 -->
             <div class="mb-3">
                 <label class="fw-bold form-label">Product Name</label>
                 <input asp-for="Name" class="form-control" readonly
                        style="background:#f0f0f0; cursor:not-allowed;" />
-            </div>
-
-            <!-- Description: locked to "Edited stock" — controller enforces this -->
-            <div class="mb-3">
-                <label class="fw-bold form-label">Description</label>
-                <input class="form-control" value="Edited stock" readonly
-                       style="background:#fff3cd; cursor:not-allowed;" />
-                <small class="text-muted">Auto-set to "Edited stock" — a new record will be created.</small>
             </div>
 
             <div class="mb-3">
@@ -42,35 +38,54 @@
             </div>
 
             <div class="mb-3">
-                <label asp-for="Quantity" class="fw-bold form-label">Quantity</label>
+                <label asp-for="Quantity" class="fw-bold form-label">
+                    Quantity Adjustment
+                </label>
                 <input asp-for="Quantity" class="form-control" type="number" />
-                <small class="text-muted">Enter a positive number to add stock, negative to remove stock.</small>
+                <small class="text-muted">
+                    Enter a <strong>positive number</strong> to add stock (e.g. +10),
+                    or a <strong>negative number</strong> to subtract stock (e.g. -5).
+                    The result cannot go below zero.
+                </small>
                 <span asp-validation-for="Quantity" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
-                <label asp-for="PurchaseRate" class="fw-bold form-label">Purchase Rate (BDT)</label>
-                <input asp-for="PurchaseRate" class="form-control" type="number" step="0.01" min="0" />
+                <label asp-for="PurchaseRate" class="fw-bold form-label">
+                    Purchase Rate (BDT)
+                </label>
+                <input asp-for="PurchaseRate" class="form-control"
+                       type="number" step="0.01" min="0" />
+                <small class="text-muted">
+                    This will replace the previous purchase rate going forward.
+                </small>
                 <span asp-validation-for="PurchaseRate" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
-                <label asp-for="SellingPrice" class="fw-bold form-label">Selling Price (BDT)</label>
-                <input asp-for="SellingPrice" class="form-control" type="number" step="0.01" min="0" />
+                <label asp-for="SellingPrice" class="fw-bold form-label">
+                    Selling Price (BDT)
+                </label>
+                <input asp-for="SellingPrice" class="form-control"
+                       type="number" step="0.01" min="0" />
+                <small class="text-muted">
+                    This will replace the previous selling price going forward.
+                </small>
                 <span asp-validation-for="SellingPrice" class="text-danger"></span>
             </div>
 
             <hr />
 
             <div class="d-flex gap-2">
-                <button type="submit" class="btn text-white px-4" style="background:#00aaff;">
+                <button type="submit" class="btn text-white px-4"
+                        style="background:#00aaff;">
                     Update Product
                 </button>
-                <a asp-controller="Admin" asp-action="ViewProduct" class="btn btn-outline-secondary px-4">
+                <a asp-controller="Admin" asp-action="ViewProduct"
+                       class="btn btn-outline-secondary px-4">
                     Cancel
                 </a>
             </div>
-
         </form>
     </div>
 </div>
