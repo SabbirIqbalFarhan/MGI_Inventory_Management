@@ -468,28 +468,48 @@ namespace MGI_Inventory_Management.Controllers
                 m.ProductName.ToLower() == g.Key.Name.ToLower()
                 && m.CategoryId == g.Key.CategoryId);
 
-        // Active records = exclude removal logs
-        var activeRecords = g
-            .Where(x => !x.Description.StartsWith("Stock removed by"))
+        var allRecords = g
             .OrderByDescending(x => x.PublishedDate)
             .ToList();
 
-        // Net qty from active records ONLY — removal log records have Qty=0 anyway
-        // but excluding them ensures no negative offset corruption
+        // Find the most recent "Stock removed by" record date
+        var lastDeletionRecord = allRecords
+            .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
+
+        List<dynamic> activeRecords;
+
+        if (lastDeletionRecord != null)
+        {
+            // Only count records AFTER the last deletion
+            activeRecords = allRecords
+                .Where(x => x.PublishedDate > lastDeletionRecord.PublishedDate
+                         && !x.Description.StartsWith("Stock removed by"))
+                .ToList<dynamic>();
+        }
+        else
+        {
+            // No deletion ever — count all non-removal records
+            activeRecords = allRecords
+                .Where(x => !x.Description.StartsWith("Stock removed by"))
+                .ToList<dynamic>();
+        }
+
+        // Net qty only from records after last deletion
         var netQty = activeRecords.Sum(x => (int?)x.Quantity) ?? 0;
 
-        var latestActive = activeRecords.FirstOrDefault();
-
-        // Latest record with actual prices
-        var latestWithPrice = activeRecords
-            .FirstOrDefault(x => x.SellingPrice > 0 || x.PurchaseRate > 0);
-
-        // Most recent record across ALL including removal logs
-        var mostRecentRecord = g
+        var latestActive = activeRecords
             .OrderByDescending(x => x.PublishedDate)
             .FirstOrDefault();
 
-        // Card is hidden only when last action was a deletion
+        var latestWithPrice = activeRecords
+            .Where(x => x.SellingPrice > 0 || x.PurchaseRate > 0)
+            .OrderByDescending(x => x.PublishedDate)
+            .FirstOrDefault();
+
+        // Most recent record across ALL
+        var mostRecentRecord = allRecords.FirstOrDefault();
+
+        // Card hidden only when last action was deletion
         bool isDeleted = mostRecentRecord != null
             && mostRecentRecord.Description.StartsWith("Stock removed by");
 
