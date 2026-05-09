@@ -70,7 +70,9 @@
     </div>
 
     <!-- ORDERS -->
-    <div class="mb-3 d-flex align-items-center gap-2">
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
+    {
+        <div class="mb-3 d-flex align-items-center gap-2">
         <i class="bi bi-cart-check text-success"></i>
         <span class="fw-bold text-uppercase small text-secondary">Orders</span>
     </div>
@@ -107,9 +109,13 @@
             </a>
         </div>
     </div>
+    }
+    
 
     <!-- PURCHASES -->
-    <div class="mb-3 d-flex align-items-center gap-2">
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supllier"))
+    {
+        <div class="mb-3 d-flex align-items-center gap-2">
         <i class="bi bi-truck text-warning"></i>
         <span class="fw-bold text-uppercase small text-secondary">Purchases</span>
     </div>
@@ -146,9 +152,11 @@
             </a>
         </div>
     </div>
-
-    <!-- USERS -->
-    <div class="mb-3 d-flex align-items-center gap-2">
+    }
+    
+     @if (User.IsInRole("Admin"))
+    {
+        <div class="mb-3 d-flex align-items-center gap-2">
         <i class="bi bi-people text-purple"></i>
         <span class="fw-bold text-uppercase small text-secondary">User Management</span>
     </div>
@@ -176,6 +184,9 @@
         </div>
 
     </div>
+    }
+    <!-- USERS -->
+    
 
 </div>
 

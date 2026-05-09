@@ -11,7 +11,291 @@
         <div class="alert alert-success">@TempData["SuccessMessage"]</div>
     }
 
-    <!-- TABLE 1: Admin only -->
+    
+
+    <!-- PRODUCT SUMMARY CARDS -->
+    <div class="card p-4 shadow mb-4">
+        <h4 style="color:#00aaff;">Product Summary</h4>
+
+        <!-- FIX: Single perfectly aligned flex row for all controls -->
+        <div style="display:flex; gap:12px; align-items:flex-end;
+            flex-wrap:wrap; margin-top:16px; margin-bottom:24px;">
+
+            <!-- Category Filter -->
+            <div style="flex:1.5; min-width:160px;">
+                <label style="font-size:0.82rem; font-weight:600;
+                    color:#444; display:block; margin-bottom:5px;">
+                    Filter by Category
+                </label>
+                <select id="filterCategorySelect"
+                        class="form-select form-select-sm"
+                        style="height:38px;"
+                        onchange="applyFilter()">
+                    <option value="0">-- All Categories --</option>
+                    @foreach (var cat in ViewBag.Categories)
+                    {
+                        if (cat.Id == (int)ViewBag.FilterCategory)
+                        {
+                            <option value="@cat.Id" selected>@cat.Name</option>
+                        }
+                        else
+                        {
+                            <option value="@cat.Id">@cat.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <!-- Search Input -->
+            <div style="flex:2; min-width:180px;">
+                <label style="font-size:0.82rem; font-weight:600;
+                    color:#444; display:block; margin-bottom:5px;">
+                    Search by Product Name
+                </label>
+                <input type="text" id="searchNameInput"
+                       class="form-control form-control-sm"
+                       style="height:38px;"
+                       placeholder="e.g. Fresh Drinking Water"
+                       value="@ViewBag.SearchName"
+                       onkeydown="if(event.key==='Enter') applySearch()" />
+            </div>
+
+            <!-- Search Button -->
+            <div style="flex-shrink:0;">
+                <button onclick="applySearch()"
+                        class="btn btn-primary"
+                        style="height:38px; padding:0 20px; font-size:0.88rem;
+                    white-space:nowrap;">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div style="flex-shrink:0;">
+                <a asp-action="ViewProduct"
+                       class="btn btn-outline-secondary"
+                       style="height:38px; padding:0 14px; font-size:0.88rem;
+                    display:inline-flex; align-items:center; gap:6px;">
+                    <i class="bi bi-x-circle"></i> Reset
+                </a>
+            </div>
+
+            <!-- Add Product Button — Admin/Manager only, same row -->
+            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+            {
+                <div style="flex-shrink:0; margin-left:auto;">
+                    <a asp-controller="Admin" asp-action="AddProduct"
+                           class="btn btn-primary"
+                           style="height:38px; padding:0 20px; font-size:0.88rem;
+                        white-space:nowrap; display:inline-flex;
+                        align-items:center; gap:6px;">
+                        <i class="bi bi-plus-lg"></i> Add Product
+                    </a>
+                </div>
+            }
+        </div>
+
+        @if (ViewBag.GroupedProducts != null &&
+             ((IEnumerable<dynamic>)ViewBag.GroupedProducts).Any())
+        {
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+                @foreach (var item in ViewBag.GroupedProducts)
+                {
+                    int qty = (int)item.TotalQuantity;
+                    string qtyColor = qty >= 1 ? "#198754" : "#dc3545";
+                    string qtyLabel = qty >= 1 ? "In Stock" : "Out of Stock";
+
+                    <div class="col">
+                        <div style="background:#fff; border-radius:12px;
+                            border:1px solid #e0e0e0;
+                            box-shadow:0 2px 8px rgba(0,0,0,0.07);
+                            overflow:hidden; height:100%;
+                            display:flex; flex-direction:column;
+                            transition:transform 0.2s, box-shadow 0.2s;"
+                             onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,170,255,0.15)'"
+                             onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'">
+
+                            <!-- IMAGE -->
+                            <div style="width:100%; position:relative;
+                                padding-top:70%; background:#f5f5f5; overflow:hidden;">
+                                @if (item.ImagePath != null)
+                                {
+                                    <img src="@item.ImagePath" alt="@item.ProductName"
+                                         style="position:absolute; top:0; left:0;
+                                    width:100%; height:100%;
+                                    object-fit:contain; padding:8px;" />
+                                }
+                                else
+                                {
+                                    <div style="position:absolute; top:0; left:0;
+                                        width:100%; height:100%; display:flex;
+                                        align-items:center; justify-content:center;">
+                                        <i class="bi bi-box-seam" style="font-size:3rem;color:#ccc;"></i>
+                                    </div>
+                                }
+                                <span style="position:absolute; top:10px; right:10px;
+                                    background:@qtyColor; color:#fff;
+                                    font-size:0.72rem; font-weight:600;
+                                    padding:3px 10px; border-radius:50px; z-index:1;">
+                                    @qtyLabel
+                                </span>
+                            </div>
+
+                            <!-- BODY -->
+                            <div style="padding:14px 16px; flex:1; display:flex;
+                                flex-direction:column; gap:6px;">
+
+                                <h6 style="margin:0; font-weight:700; color:#1a1a1a;
+                                    font-size:0.95rem; line-height:1.3;">
+                                    @item.ProductName
+                                </h6>
+
+                                <span style="font-size:0.78rem; color:#fff;
+                                    background:#00aaff; border-radius:50px;
+                                    padding:2px 10px; display:inline-block;
+                                    width:fit-content;">
+                                    @item.Category
+                                </span>
+
+                                <p style="margin:0; font-size:0.82rem;
+                                    color:#666; line-height:1.4;">
+                                    @item.Description
+                                </p>
+
+                                <hr style="margin:6px 0; border-color:#f0f0f0;" />
+
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                {
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.8rem; color:#888;">Net Quantity</span>
+                                        <strong style="color:@qtyColor; font-size:0.95rem;">@qty units</strong>
+                                    </div>
+                                }
+
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
+                                {
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.8rem; color:#888;">Selling Price</span>
+                                        <strong style="color:#1a1a1a; font-size:0.95rem;">
+                                            ৳ @item.SellingPrice.ToString("F2")
+                                        </strong>
+                                    </div>
+                                }
+
+                                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
+                                {
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.8rem; color:#888;">Purchase Rate</span>
+                                        <strong style="color:#6c757d; font-size:0.95rem;">
+                                            ৳ @item.PurchaseRate.ToString("F2")
+                                        </strong>
+                                    </div>
+                                }
+
+                                <div style="display:flex; flex-direction:column;
+                                    gap:8px; margin-top:auto; padding-top:10px;">
+
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
+                                    {
+                                        <a asp-controller="Admin" asp-action="Order"
+                                               asp-route-categoryId="@item.CategoryId"
+                                               asp-route-productName="@item.ProductName"
+                                               class="btn btn-sm w-100"
+                                               style="background:#00aaff; color:#fff;
+                                            font-size:0.82rem; border:none;">
+                                            <i class="bi bi-cart-plus-fill me-1"></i>Make Order
+                                        </a>
+                                    }
+
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                    {
+                                        <a asp-controller="Admin" asp-action="PurchaseProduct"
+                                               asp-route-categoryId="@item.CategoryId"
+                                               asp-route-productName="@item.ProductName"
+                                               class="btn btn-sm w-100"
+                                               style="background:#198754; color:#fff;
+                                            font-size:0.82rem; border:none;">
+                                            <i class="bi bi-bag-plus-fill me-1"></i>Make Purchase
+                                        </a>
+                                    }
+
+                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                    {
+                                        <div style="display:flex; gap:8px;">
+                                            @if ((int)item.LatestId > 0)
+                                            {
+                                                <a asp-action="EditProduct"
+                                                       asp-route-id="@item.LatestId"
+                                                       class="btn btn-sm btn-warning"
+                                                       style="flex:1; font-size:0.82rem;">
+                                                    <i class="bi bi-pencil-fill me-1"></i>Edit
+                                                </a>
+                                                <form asp-action="DeleteProduct" method="post"
+                                                      style="flex:1; margin:0;"
+                                                      onsubmit="return confirm('Delete this product?')">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@item.LatestId" />
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-danger w-100"
+                                                            style="font-size:0.82rem;">
+                                                        <i class="bi bi-trash-fill me-1"></i>Delete
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- PAGINATION -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;">
+                @if (ViewBag.CurrentPage2 > 1)
+                {
+                    <a asp-action="ViewProduct"
+                       asp-route-page1="@ViewBag.CurrentPage1"
+                       asp-route-page2="@(ViewBag.CurrentPage2 - 1)"
+                       asp-route-filterCategory="@ViewBag.FilterCategory"
+                       asp-route-searchName="@ViewBag.SearchName"
+                       class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+                }
+                @for (int i = 1; i <= ViewBag.TotalPages2; i++)
+                {
+                    <a asp-action="ViewProduct"
+                       asp-route-page1="@ViewBag.CurrentPage1"
+                       asp-route-page2="@i"
+                       asp-route-filterCategory="@ViewBag.FilterCategory"
+                       asp-route-searchName="@ViewBag.SearchName"
+                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage2 ? "btn-primary" : "btn-outline-primary")">@i</a>
+                }
+                @if (ViewBag.CurrentPage2 < ViewBag.TotalPages2)
+                {
+                    <a asp-action="ViewProduct"
+                       asp-route-page1="@ViewBag.CurrentPage1"
+                       asp-route-page2="@(ViewBag.CurrentPage2 + 1)"
+                       asp-route-filterCategory="@ViewBag.FilterCategory"
+                       asp-route-searchName="@ViewBag.SearchName"
+                       class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-search" style="font-size:3rem; color:#ccc;"></i>
+                <p class="text-muted mt-3">No products found.</p>
+                <a asp-action="ViewProduct" class="btn btn-outline-primary btn-sm">
+                    Clear Filters
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- TABLE 1: Admin only -->
     @if (User.IsInRole("Admin"))
     {
         <div class="card p-4 shadow mb-5">
@@ -220,276 +504,6 @@
             </div>
         </div>
     }
-
-    <!-- PRODUCT SUMMARY CARDS -->
-    <div class="card p-4 shadow mb-4">
-        <h4 style="color:#00aaff;">Product Summary</h4>
-
-        <!-- FIX: Single perfectly aligned flex row for all controls -->
-        <div style="display:flex; gap:12px; align-items:flex-end;
-            flex-wrap:wrap; margin-top:16px; margin-bottom:24px;">
-
-            <!-- Category Filter -->
-            <div style="flex:1.5; min-width:160px;">
-                <label style="font-size:0.82rem; font-weight:600;
-                    color:#444; display:block; margin-bottom:5px;">
-                    Filter by Category
-                </label>
-                <select id="filterCategorySelect"
-                        class="form-select form-select-sm"
-                        style="height:38px;"
-                        onchange="applyFilter()">
-                    <option value="0">-- All Categories --</option>
-                    @foreach (var cat in ViewBag.Categories)
-                    {
-                        if (cat.Id == (int)ViewBag.FilterCategory)
-                        {
-                            <option value="@cat.Id" selected>@cat.Name</option>
-                        }
-                        else
-                        {
-                            <option value="@cat.Id">@cat.Name</option>
-                        }
-                    }
-                </select>
-            </div>
-
-            <!-- Search Input -->
-            <div style="flex:2; min-width:180px;">
-                <label style="font-size:0.82rem; font-weight:600;
-                    color:#444; display:block; margin-bottom:5px;">
-                    Search by Product Name
-                </label>
-                <input type="text" id="searchNameInput"
-                       class="form-control form-control-sm"
-                       style="height:38px;"
-                       placeholder="e.g. Fresh Drinking Water"
-                       value="@ViewBag.SearchName"
-                       onkeydown="if(event.key==='Enter') applySearch()" />
-            </div>
-
-            <!-- Search Button -->
-            <div style="flex-shrink:0;">
-                <button onclick="applySearch()"
-                        class="btn btn-primary"
-                        style="height:38px; padding:0 20px; font-size:0.88rem;
-                    white-space:nowrap;">
-                    <i class="bi bi-search me-1"></i>Search
-                </button>
-            </div>
-
-            <!-- Reset Button -->
-            <div style="flex-shrink:0;">
-                <a asp-action="ViewProduct"
-                       class="btn btn-outline-secondary"
-                       style="height:38px; padding:0 14px; font-size:0.88rem;
-                    display:inline-flex; align-items:center; gap:6px;">
-                    <i class="bi bi-x-circle"></i> Reset
-                </a>
-            </div>
-
-            <!-- Add Product Button — Admin/Manager only, same row -->
-            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-            {
-                <div style="flex-shrink:0; margin-left:auto;">
-                    <a asp-controller="Admin" asp-action="AddProduct"
-                           class="btn btn-primary"
-                           style="height:38px; padding:0 20px; font-size:0.88rem;
-                        white-space:nowrap; display:inline-flex;
-                        align-items:center; gap:6px;">
-                        <i class="bi bi-plus-lg"></i> Add Product
-                    </a>
-                </div>
-            }
-        </div>
-
-        @if (ViewBag.GroupedProducts != null &&
-             ((IEnumerable<dynamic>)ViewBag.GroupedProducts).Any())
-        {
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
-                @foreach (var item in ViewBag.GroupedProducts)
-                {
-                    int qty = (int)item.TotalQuantity;
-                    string qtyColor = qty >= 1 ? "#198754" : "#dc3545";
-                    string qtyLabel = qty >= 1 ? "In Stock" : "Out of Stock";
-
-                    <div class="col">
-                        <div style="background:#fff; border-radius:12px;
-                            border:1px solid #e0e0e0;
-                            box-shadow:0 2px 8px rgba(0,0,0,0.07);
-                            overflow:hidden; height:100%;
-                            display:flex; flex-direction:column;
-                            transition:transform 0.2s, box-shadow 0.2s;"
-                             onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 24px rgba(0,170,255,0.15)'"
-                             onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'">
-
-                            <!-- IMAGE -->
-                            <div style="width:100%; position:relative;
-                                padding-top:70%; background:#f5f5f5; overflow:hidden;">
-                                @if (item.ImagePath != null)
-                                {
-                                    <img src="@item.ImagePath" alt="@item.ProductName"
-                                         style="position:absolute; top:0; left:0;
-                                    width:100%; height:100%;
-                                    object-fit:contain; padding:8px;" />
-                                }
-                                else
-                                {
-                                    <div style="position:absolute; top:0; left:0;
-                                        width:100%; height:100%; display:flex;
-                                        align-items:center; justify-content:center;">
-                                        <i class="bi bi-box-seam" style="font-size:3rem;color:#ccc;"></i>
-                                    </div>
-                                }
-                                <span style="position:absolute; top:10px; right:10px;
-                                    background:@qtyColor; color:#fff;
-                                    font-size:0.72rem; font-weight:600;
-                                    padding:3px 10px; border-radius:50px; z-index:1;">
-                                    @qtyLabel
-                                </span>
-                            </div>
-
-                            <!-- BODY -->
-                            <div style="padding:14px 16px; flex:1; display:flex;
-                                flex-direction:column; gap:6px;">
-
-                                <h6 style="margin:0; font-weight:700; color:#1a1a1a;
-                                    font-size:0.95rem; line-height:1.3;">
-                                    @item.ProductName
-                                </h6>
-
-                                <span style="font-size:0.78rem; color:#fff;
-                                    background:#00aaff; border-radius:50px;
-                                    padding:2px 10px; display:inline-block;
-                                    width:fit-content;">
-                                    @item.Category
-                                </span>
-
-                                <p style="margin:0; font-size:0.82rem;
-                                    color:#666; line-height:1.4;">
-                                    @item.Description
-                                </p>
-
-                                <hr style="margin:6px 0; border-color:#f0f0f0;" />
-
-                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-                                {
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="font-size:0.8rem; color:#888;">Net Quantity</span>
-                                        <strong style="color:@qtyColor; font-size:0.95rem;">@qty units</strong>
-                                    </div>
-                                }
-
-                                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
-                                {
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="font-size:0.8rem; color:#888;">Selling Price</span>
-                                        <strong style="color:#1a1a1a; font-size:0.95rem;">
-                                            ৳ @item.SellingPrice.ToString("F2")
-                                        </strong>
-                                    </div>
-                                }
-
-                                @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
-                                {
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="font-size:0.8rem; color:#888;">Purchase Rate</span>
-                                        <strong style="color:#6c757d; font-size:0.95rem;">
-                                            ৳ @item.PurchaseRate.ToString("F2")
-                                        </strong>
-                                    </div>
-                                }
-
-                                <div style="display:flex; flex-direction:column;
-                                    gap:8px; margin-top:auto; padding-top:10px;">
-
-                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
-                                    {
-                                        <a asp-controller="Admin" asp-action="Order"
-                                               asp-route-categoryId="@item.CategoryId"
-                                               asp-route-productName="@item.ProductName"
-                                               class="btn btn-sm w-100"
-                                               style="background:#00aaff; color:#fff;
-                                            font-size:0.82rem; border:none;">
-                                            <i class="bi bi-cart-plus-fill me-1"></i>Make Order
-                                        </a>
-                                    }
-
-                                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-                                    {
-                                        <div style="display:flex; gap:8px;">
-                                            @if ((int)item.LatestId > 0)
-                                            {
-                                                <a asp-action="EditProduct"
-                                                       asp-route-id="@item.LatestId"
-                                                       class="btn btn-sm btn-warning"
-                                                       style="flex:1; font-size:0.82rem;">
-                                                    <i class="bi bi-pencil-fill me-1"></i>Edit
-                                                </a>
-                                                <form asp-action="DeleteProduct" method="post"
-                                                      style="flex:1; margin:0;"
-                                                      onsubmit="return confirm('Delete this product?')">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.LatestId" />
-                                                    <button type="submit"
-                                                            class="btn btn-sm btn-danger w-100"
-                                                            style="font-size:0.82rem;">
-                                                        <i class="bi bi-trash-fill me-1"></i>Delete
-                                                    </button>
-                                                </form>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            <!-- PAGINATION -->
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;">
-                @if (ViewBag.CurrentPage2 > 1)
-                {
-                    <a asp-action="ViewProduct"
-                       asp-route-page1="@ViewBag.CurrentPage1"
-                       asp-route-page2="@(ViewBag.CurrentPage2 - 1)"
-                       asp-route-filterCategory="@ViewBag.FilterCategory"
-                       asp-route-searchName="@ViewBag.SearchName"
-                       class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
-                }
-                @for (int i = 1; i <= ViewBag.TotalPages2; i++)
-                {
-                    <a asp-action="ViewProduct"
-                       asp-route-page1="@ViewBag.CurrentPage1"
-                       asp-route-page2="@i"
-                       asp-route-filterCategory="@ViewBag.FilterCategory"
-                       asp-route-searchName="@ViewBag.SearchName"
-                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage2 ? "btn-primary" : "btn-outline-primary")">@i</a>
-                }
-                @if (ViewBag.CurrentPage2 < ViewBag.TotalPages2)
-                {
-                    <a asp-action="ViewProduct"
-                       asp-route-page1="@ViewBag.CurrentPage1"
-                       asp-route-page2="@(ViewBag.CurrentPage2 + 1)"
-                       asp-route-filterCategory="@ViewBag.FilterCategory"
-                       asp-route-searchName="@ViewBag.SearchName"
-                       class="btn btn-sm btn-outline-primary">Next &#8594;</a>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="text-center py-5">
-                <i class="bi bi-search" style="font-size:3rem; color:#ccc;"></i>
-                <p class="text-muted mt-3">No products found.</p>
-                <a asp-action="ViewProduct" class="btn btn-outline-primary btn-sm">
-                    Clear Filters
-                </a>
-            </div>
-        }
-    </div>
-</div>
 
 @section Scripts {
     <script>

@@ -598,27 +598,46 @@ namespace MGI_Inventory_Management.Controllers
 
             string performedBy = GetUserLabel();
 
-            // Calculate current net quantity excluding log-only records
-            var currentNetQty = _context.Products
+            // Get all records after the last deletion (same logic as ViewProduct)
+            var allRecords = _context.Products
                 .Where(p => p.Name == existing.Name
-                         && p.CategoryId == existing.CategoryId
-                         && !p.Description.StartsWith("Edited stock (old)")
-                         && !p.Description.StartsWith("Stock removed (original)")
-                         && !p.Description.StartsWith("Stock removed by"))
-                .Sum(p => (int?)p.Quantity) ?? 0;
+                         && p.CategoryId == existing.CategoryId)
+                .OrderByDescending(p => p.PublishedDate)
+                .ToList();
+
+            var lastDeletion = allRecords
+                .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
+
+            int currentNetQty;
+
+            if (lastDeletion != null)
+            {
+                // Only sum records after the last deletion
+                currentNetQty = allRecords
+                    .Where(x => x.PublishedDate > lastDeletion.PublishedDate
+                             && !x.Description.StartsWith("Stock removed by"))
+                    .Sum(x => (int?)x.Quantity) ?? 0;
+            }
+            else
+            {
+                // No deletion ever — sum all non-removal records
+                currentNetQty = allRecords
+                    .Where(x => !x.Description.StartsWith("Stock removed by"))
+                    .Sum(x => (int?)x.Quantity) ?? 0;
+            }
 
             int newNetQty = currentNetQty + product.Quantity;
 
             if (newNetQty < 0)
             {
                 TempData["ErrorMessage"] =
-                    $"Cannot update — quantity would become {newNetQty}. " +
-                    $"Current stock is {currentNetQty} units. " +
-                    $"You cannot subtract more than the available quantity.";
+                    $"Invalid quantity — current stock is {currentNetQty} units. " +
+                    $"You cannot subtract more than {currentNetQty} units. " +
+                    $"Minimum allowed entry is -{currentNetQty}.";
                 return RedirectToAction("ViewProduct");
             }
 
-            // Always insert a brand new record — never touch existing ones
+            // Insert new record with delta quantity
             _context.Products.Add(new AddProduct
             {
                 Name = existing.Name,
@@ -1023,10 +1042,12 @@ namespace MGI_Inventory_Management.Controllers
         // ─────────────────────────────────────────
         // MAKE PURCHASE — Admin + Manager
         // ─────────────────────────────────────────
-        [Authorize(Roles = "Admin,Manager,Supplier")]
-        public IActionResult PurchaseProduct()
+        [Authorize(Roles = "Admin,Manager")]
+        public IActionResult PurchaseProduct(int? categoryId = null, string? productName = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
+            ViewBag.PrefilledCategoryId = categoryId;
+            ViewBag.PrefilledProductName = productName;
             return View();
         }
 
