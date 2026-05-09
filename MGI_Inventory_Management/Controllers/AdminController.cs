@@ -455,53 +455,59 @@ namespace MGI_Inventory_Management.Controllers
             ViewBag.ProductMasterMap = masterImageMap;
 
             var groupedQuery = allEntriesList
-                .GroupBy(p => new
-                {
-                    p.Name,
-                    p.CategoryId,
-                    CategoryName = p.Category != null ? p.Category.Name : ""
-                })
-                .Select(g =>
-                {
-                    var master = _context.ProductMasters
-                        .FirstOrDefault(m =>
-                            m.ProductName.ToLower() == g.Key.Name.ToLower()
-                            && m.CategoryId == g.Key.CategoryId);
+    .GroupBy(p => new
+    {
+        p.Name,
+        p.CategoryId,
+        CategoryName = p.Category != null ? p.Category.Name : ""
+    })
+    .Select(g =>
+    {
+        var master = _context.ProductMasters
+            .FirstOrDefault(m =>
+                m.ProductName.ToLower() == g.Key.Name.ToLower()
+                && m.CategoryId == g.Key.CategoryId);
 
-                    // Active = records that represent real stock movements
-                    var activeRecords = g.Where(x =>
-                        !x.Description.StartsWith("Stock removed by"));
+        // Active records = exclude removal logs
+        var activeRecords = g
+            .Where(x => !x.Description.StartsWith("Stock removed by"))
+            .OrderByDescending(x => x.PublishedDate)
+            .ToList();
 
-                    var latestActive = activeRecords
-                        .OrderByDescending(x => x.PublishedDate)
-                        .FirstOrDefault();
+        // Net qty from active records ONLY — removal log records have Qty=0 anyway
+        // but excluding them ensures no negative offset corruption
+        var netQty = activeRecords.Sum(x => (int?)x.Quantity) ?? 0;
 
-                    // Net qty from all active records
-                    var netQty = activeRecords
-                        .Sum(x => (int?)x.Quantity) ?? 0;
+        var latestActive = activeRecords.FirstOrDefault();
 
-                    // Latest price from records that have prices
-                    var latestWithPrice = activeRecords
-                        .Where(x => x.SellingPrice > 0 || x.PurchaseRate > 0)
-                        .OrderByDescending(x => x.PublishedDate)
-                        .FirstOrDefault();
+        // Latest record with actual prices
+        var latestWithPrice = activeRecords
+            .FirstOrDefault(x => x.SellingPrice > 0 || x.PurchaseRate > 0);
 
-                    return new
-                    {
-                        ProductName = g.Key.Name,
-                        Category = g.Key.CategoryName,
-                        CategoryId = g.Key.CategoryId,
-                        Description = master != null ? master.Description : "-",
-                        ImagePath = master?.ImagePath,
-                        TotalQuantity = netQty,
-                        LatestId = latestActive?.Id ?? 0,
-                        SellingPrice = latestWithPrice?.SellingPrice ?? 0,
-                        PurchaseRate = latestWithPrice?.PurchaseRate ?? 0
-                    };
-                })
-                .AsEnumerable();
+        // Most recent record across ALL including removal logs
+        var mostRecentRecord = g
+            .OrderByDescending(x => x.PublishedDate)
+            .FirstOrDefault();
 
-            // Hide cards where no active records remain (fully deleted)
+        // Card is hidden only when last action was a deletion
+        bool isDeleted = mostRecentRecord != null
+            && mostRecentRecord.Description.StartsWith("Stock removed by");
+
+        return new
+        {
+            ProductName = g.Key.Name,
+            Category = g.Key.CategoryName,
+            CategoryId = g.Key.CategoryId,
+            Description = master != null ? master.Description : "-",
+            ImagePath = master?.ImagePath,
+            TotalQuantity = netQty,
+            LatestId = isDeleted ? 0 : (latestActive?.Id ?? 0),
+            SellingPrice = latestWithPrice?.SellingPrice ?? 0,
+            PurchaseRate = latestWithPrice?.PurchaseRate ?? 0
+        };
+    })
+    .AsEnumerable();
+
             groupedQuery = groupedQuery.Where(x => x.LatestId > 0);
 
             if (filterCategory.HasValue && filterCategory > 0)
@@ -622,19 +628,13 @@ namespace MGI_Inventory_Management.Controllers
             string productName = product.Name;
             int categoryId = product.CategoryId;
 
-            // Get net quantity from all active records
-            var netQuantity = _context.Products
-                .Where(p => p.Name == productName
-                         && p.CategoryId == categoryId
-                         && !p.Description.StartsWith("Stock removed by"))
-                .Sum(p => (int?)p.Quantity) ?? 0;
-
-            // ONLY insert a new log record — do NOT delete any previous records
+            // Insert log record with Quantity = 0
+            // Card visibility is controlled by isDeleted flag, not quantity sum
             _context.Products.Add(new AddProduct
             {
                 Name = productName,
                 CategoryId = categoryId,
-                Quantity = netQuantity != 0 ? -netQuantity : 0,
+                Quantity = 0,
                 PurchaseRate = 0,
                 SellingPrice = 0,
                 Description = $"Stock removed by {performedBy}",
