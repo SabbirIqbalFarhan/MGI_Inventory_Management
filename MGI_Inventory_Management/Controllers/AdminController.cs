@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace MGI_Inventory_Management.Controllers
 {
-    [Authorize] // All actions require login by default
+    [Authorize]
     public class AdminController : Controller
     {
         private readonly AppDbContext _context;
@@ -22,19 +22,18 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // DASHBOARD — any authenticated user
+        // DASHBOARD
         // ─────────────────────────────────────────
         public IActionResult Index() => View();
 
         // ─────────────────────────────────────────
-        // MANAGE CATEGORIES — Admin + Manager only
+        // MANAGE CATEGORIES
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
         public IActionResult ManageCategories(int page = 1, int logPage = 1)
         {
             int pageSize = 10;
 
-            // ── CATEGORIES ──
             var all = _context.Categories.ToList();
             int totalPages = (int)Math.Ceiling(all.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
@@ -43,24 +42,20 @@ namespace MGI_Inventory_Management.Controllers
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
 
-            // ── LOGS ──
             var allLogs = _context.CategoryLogs
-                .OrderByDescending(l => l.PerformedAt)
-                .ToList();
+                .OrderByDescending(l => l.PerformedAt).ToList();
 
             int totalLogPages = (int)Math.Ceiling(allLogs.Count / (double)pageSize);
             if (totalLogPages == 0) totalLogPages = 1;
 
             ViewBag.CategoryLogs = allLogs
-                .Skip((logPage - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                .Skip((logPage - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.LogCurrentPage = logPage;
             ViewBag.LogTotalPages = totalLogPages;
 
             return View();
         }
-        //DELETE LOG ACTION
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
@@ -89,14 +84,12 @@ namespace MGI_Inventory_Management.Controllers
                 if (!exists)
                 {
                     string addedBy = GetUserLabel();
-
                     _context.Categories.Add(new Category
                     {
                         Name = categoryName,
                         AddedBy = addedBy,
                         AddedAt = DateTime.Now
                     });
-
                     _context.CategoryLogs.Add(new CategoryLog
                     {
                         Action = "Added",
@@ -104,7 +97,6 @@ namespace MGI_Inventory_Management.Controllers
                         PerformedBy = addedBy,
                         PerformedAt = DateTime.Now
                     });
-
                     _context.SaveChanges();
                     TempData["CategorySuccess"] = "Category added successfully!";
                 }
@@ -135,7 +127,6 @@ namespace MGI_Inventory_Management.Controllers
                 }
 
                 string deletedBy = GetUserLabel();
-
                 _context.CategoryLogs.Add(new CategoryLog
                 {
                     Action = "Deleted",
@@ -143,7 +134,6 @@ namespace MGI_Inventory_Management.Controllers
                     PerformedBy = deletedBy,
                     PerformedAt = DateTime.Now
                 });
-
                 _context.Categories.Remove(category);
                 _context.SaveChanges();
                 TempData["CategorySuccess"] = "Category deleted successfully!";
@@ -152,41 +142,33 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // MANAGE MASTER PRODUCTS — Admin + Manager only
+        // MANAGE MASTER PRODUCTS
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
         public IActionResult ManageProducts(int page = 1, int logPage = 1)
         {
             int pageSize = 10;
 
-            // ── PRODUCTS ──
             var allMasters = _context.ProductMasters
-                .Include(p => p.Category)
-                .ToList();
+                .Include(p => p.Category).ToList();
 
             int totalPages = (int)Math.Ceiling(allMasters.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
 
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.ProductMasters = allMasters
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                .Skip((page - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
 
-            // ── LOGS ──
             var allLogs = _context.ProductMasterLogs
-                .OrderByDescending(l => l.PerformedAt)
-                .ToList();
+                .OrderByDescending(l => l.PerformedAt).ToList();
 
             int totalLogPages = (int)Math.Ceiling(allLogs.Count / (double)pageSize);
             if (totalLogPages == 0) totalLogPages = 1;
 
             ViewBag.ProductMasterLogs = allLogs
-                .Skip((logPage - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                .Skip((logPage - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.LogCurrentPage = logPage;
             ViewBag.LogTotalPages = totalLogPages;
 
@@ -197,8 +179,8 @@ namespace MGI_Inventory_Management.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> AddProductMaster(
-    string productName, int categoryId,
-    string description, IFormFile? imageFile)
+            string productName, int categoryId,
+            string description, IFormFile? imageFile)
         {
             if (!string.IsNullOrWhiteSpace(productName) && categoryId > 0)
             {
@@ -212,25 +194,20 @@ namespace MGI_Inventory_Management.Controllers
                     var category = _context.Categories.Find(categoryId);
                     string categoryName = category?.Name ?? "";
 
-                    // ── HANDLE IMAGE UPLOAD ────────────────
                     string? imagePath = null;
                     if (imageFile != null && imageFile.Length > 0)
                     {
                         string uploadsFolder = Path.Combine(
                             Directory.GetCurrentDirectory(),
                             "wwwroot", "uploads", "products");
-
                         Directory.CreateDirectory(uploadsFolder);
 
                         string uniqueFileName = Guid.NewGuid().ToString()
                             + Path.GetExtension(imageFile.FileName);
-
                         string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                         using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
                             await imageFile.CopyToAsync(stream);
-                        }
 
                         imagePath = "/uploads/products/" + uniqueFileName;
                     }
@@ -244,7 +221,6 @@ namespace MGI_Inventory_Management.Controllers
                         AddedAt = DateTime.Now,
                         ImagePath = imagePath
                     });
-
                     _context.ProductMasterLogs.Add(new ProductMasterLog
                     {
                         Action = "Added",
@@ -254,7 +230,6 @@ namespace MGI_Inventory_Management.Controllers
                         PerformedAt = DateTime.Now,
                         ImagePath = imagePath
                     });
-
                     _context.SaveChanges();
                     TempData["MasterSuccess"] = "Product added to master list!";
                 }
@@ -277,7 +252,6 @@ namespace MGI_Inventory_Management.Controllers
 
             if (item != null)
             {
-                // Check net quantity of this product in Products table
                 var netQuantity = _context.Products
                     .Where(p => p.Name == item.ProductName && p.CategoryId == item.CategoryId
                              && !p.Description.StartsWith("Edited stock (old)")
@@ -287,12 +261,11 @@ namespace MGI_Inventory_Management.Controllers
                 if (netQuantity != 0)
                 {
                     TempData["MasterError"] =
-                        $"Cannot delete — \"{item.ProductName}\" exists! still has {netQuantity} units in stock. ";
+                        $"Cannot delete — \"{item.ProductName}\" still has {netQuantity} units in stock.";
                     return RedirectToAction("ManageProducts");
                 }
 
                 string deletedBy = GetUserLabel();
-
                 _context.ProductMasterLogs.Add(new ProductMasterLog
                 {
                     Action = "Deleted",
@@ -302,7 +275,6 @@ namespace MGI_Inventory_Management.Controllers
                     PerformedAt = DateTime.Now,
                     ImagePath = item.ImagePath
                 });
-
                 _context.ProductMasters.Remove(item);
                 _context.SaveChanges();
                 TempData["MasterSuccess"] = "Product removed from master list!";
@@ -326,15 +298,14 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // ADD PRODUCT — Admin + Manager only
+        // ADD PRODUCT
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
         public IActionResult AddProduct()
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.ProductMasters = _context.ProductMasters
-                .Include(p => p.Category)
-                .ToList();
+                .Include(p => p.Category).ToList();
             return View();
         }
 
@@ -346,8 +317,7 @@ namespace MGI_Inventory_Management.Controllers
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.ProductMasters = _context.ProductMasters
-                .Include(p => p.Category)
-                .ToList();
+                .Include(p => p.Category).ToList();
 
             ModelState.Remove("Category");
 
@@ -355,7 +325,6 @@ namespace MGI_Inventory_Management.Controllers
                 return View("AddProduct", product);
 
             string performedBy = GetUserLabel();
-
             product.PublishedDate = DateTime.Now;
             product.Description = $"Stock added by {performedBy}";
 
@@ -406,7 +375,6 @@ namespace MGI_Inventory_Management.Controllers
             return Json(new { price = product?.PurchaseRate ?? 0 });
         }
 
-        // AJAX: Get sellers for dropdown
         [Authorize(Roles = "Admin,Manager,Seller")]
         public async Task<IActionResult> GetSellers()
         {
@@ -415,7 +383,6 @@ namespace MGI_Inventory_Management.Controllers
             return Json(list);
         }
 
-        // AJAX: Get suppliers for dropdown
         [Authorize(Roles = "Admin,Manager,Supplier")]
         public async Task<IActionResult> GetSuppliers()
         {
@@ -425,12 +392,11 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // VIEW PRODUCTS — Admin + Manager + Seller + Supplier
+        // VIEW PRODUCTS
         // ─────────────────────────────────────────
-        // Change the Authorize attribute to include Supplier
         [Authorize(Roles = "Admin,Manager,Seller,Supplier")]
         public IActionResult ViewProduct(int page1 = 1, int page2 = 1,
-    int? filterCategory = null, string? searchName = null)
+            int? filterCategory = null, string? searchName = null)
         {
             int pageSize = 10;
 
@@ -443,9 +409,7 @@ namespace MGI_Inventory_Management.Controllers
             if (totalPages1 == 0) totalPages1 = 1;
 
             var pagedEntries = allEntriesList
-                .Skip((page1 - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                .Skip((page1 - 1) * pageSize).Take(pageSize).ToList();
 
             var masterImageMap = _context.ProductMasters
                 .Where(m => m.ImagePath != null)
@@ -455,78 +419,69 @@ namespace MGI_Inventory_Management.Controllers
             ViewBag.ProductMasterMap = masterImageMap;
 
             var groupedQuery = allEntriesList
-    .GroupBy(p => new
-    {
-        p.Name,
-        p.CategoryId,
-        CategoryName = p.Category != null ? p.Category.Name : ""
-    })
-    .Select(g =>
-    {
-        var master = _context.ProductMasters
-            .FirstOrDefault(m =>
-                m.ProductName.ToLower() == g.Key.Name.ToLower()
-                && m.CategoryId == g.Key.CategoryId);
+                .GroupBy(p => new
+                {
+                    p.Name,
+                    p.CategoryId,
+                    CategoryName = p.Category != null ? p.Category.Name : ""
+                })
+                .Select(g =>
+                {
+                    var master = _context.ProductMasters
+                        .FirstOrDefault(m =>
+                            m.ProductName.ToLower() == g.Key.Name.ToLower()
+                            && m.CategoryId == g.Key.CategoryId);
 
-        var allRecords = g
-            .OrderByDescending(x => x.PublishedDate)
-            .ToList();
+                    var allRecords = g.OrderByDescending(x => x.PublishedDate).ToList();
 
-        // Find the most recent "Stock removed by" record date
-        var lastDeletionRecord = allRecords
-            .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
+                    var lastDeletionRecord = allRecords
+                        .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
 
-        List<dynamic> activeRecords;
+                    List<dynamic> activeRecords;
+                    if (lastDeletionRecord != null)
+                    {
+                        activeRecords = allRecords
+                            .Where(x => x.PublishedDate > lastDeletionRecord.PublishedDate
+                                     && !x.Description.StartsWith("Stock removed by"))
+                            .ToList<dynamic>();
+                    }
+                    else
+                    {
+                        activeRecords = allRecords
+                            .Where(x => !x.Description.StartsWith("Stock removed by"))
+                            .ToList<dynamic>();
+                    }
 
-        if (lastDeletionRecord != null)
-        {
-            // Only count records AFTER the last deletion
-            activeRecords = allRecords
-                .Where(x => x.PublishedDate > lastDeletionRecord.PublishedDate
-                         && !x.Description.StartsWith("Stock removed by"))
-                .ToList<dynamic>();
-        }
-        else
-        {
-            // No deletion ever — count all non-removal records
-            activeRecords = allRecords
-                .Where(x => !x.Description.StartsWith("Stock removed by"))
-                .ToList<dynamic>();
-        }
+                    var netQty = activeRecords.Sum(x => (int?)x.Quantity) ?? 0;
 
-        // Net qty only from records after last deletion
-        var netQty = activeRecords.Sum(x => (int?)x.Quantity) ?? 0;
+                    var latestActive = activeRecords
+                        .OrderByDescending(x => x.PublishedDate)
+                        .FirstOrDefault();
 
-        var latestActive = activeRecords
-            .OrderByDescending(x => x.PublishedDate)
-            .FirstOrDefault();
+                    var latestWithPrice = activeRecords
+                        .Where(x => x.SellingPrice > 0 || x.PurchaseRate > 0)
+                        .OrderByDescending(x => x.PublishedDate)
+                        .FirstOrDefault();
 
-        var latestWithPrice = activeRecords
-            .Where(x => x.SellingPrice > 0 || x.PurchaseRate > 0)
-            .OrderByDescending(x => x.PublishedDate)
-            .FirstOrDefault();
+                    var mostRecentRecord = allRecords.FirstOrDefault();
 
-        // Most recent record across ALL
-        var mostRecentRecord = allRecords.FirstOrDefault();
+                    bool isDeleted = mostRecentRecord != null
+                        && mostRecentRecord.Description.StartsWith("Stock removed by");
 
-        // Card hidden only when last action was deletion
-        bool isDeleted = mostRecentRecord != null
-            && mostRecentRecord.Description.StartsWith("Stock removed by");
-
-        return new
-        {
-            ProductName = g.Key.Name,
-            Category = g.Key.CategoryName,
-            CategoryId = g.Key.CategoryId,
-            Description = master != null ? master.Description : "-",
-            ImagePath = master?.ImagePath,
-            TotalQuantity = netQty,
-            LatestId = isDeleted ? 0 : (latestActive?.Id ?? 0),
-            SellingPrice = latestWithPrice?.SellingPrice ?? 0,
-            PurchaseRate = latestWithPrice?.PurchaseRate ?? 0
-        };
-    })
-    .AsEnumerable();
+                    return new
+                    {
+                        ProductName = g.Key.Name,
+                        Category = g.Key.CategoryName,
+                        CategoryId = g.Key.CategoryId,
+                        Description = master != null ? master.Description : "-",
+                        ImagePath = master?.ImagePath,
+                        TotalQuantity = netQty,
+                        LatestId = isDeleted ? 0 : (latestActive?.Id ?? 0),
+                        SellingPrice = latestWithPrice?.SellingPrice ?? 0,
+                        PurchaseRate = latestWithPrice?.PurchaseRate ?? 0
+                    };
+                })
+                .AsEnumerable();
 
             groupedQuery = groupedQuery.Where(x => x.LatestId > 0);
 
@@ -565,16 +520,20 @@ namespace MGI_Inventory_Management.Controllers
             if (product.SellingPrice == 0)
             {
                 var lastKnownPrice = _context.Products
-                    .Where(p => p.Name == product.Name && p.CategoryId == product.CategoryId && p.SellingPrice > 0)
-                    .OrderByDescending(p => p.PublishedDate).Select(p => p.SellingPrice).FirstOrDefault();
+                    .Where(p => p.Name == product.Name && p.CategoryId == product.CategoryId
+                             && p.SellingPrice > 0)
+                    .OrderByDescending(p => p.PublishedDate)
+                    .Select(p => p.SellingPrice).FirstOrDefault();
                 product.SellingPrice = lastKnownPrice;
             }
 
             if (product.PurchaseRate == 0)
             {
                 var lastKnownRate = _context.Products
-                    .Where(p => p.Name == product.Name && p.CategoryId == product.CategoryId && p.PurchaseRate > 0)
-                    .OrderByDescending(p => p.PublishedDate).Select(p => p.PurchaseRate).FirstOrDefault();
+                    .Where(p => p.Name == product.Name && p.CategoryId == product.CategoryId
+                             && p.PurchaseRate > 0)
+                    .OrderByDescending(p => p.PublishedDate)
+                    .Select(p => p.PurchaseRate).FirstOrDefault();
                 product.PurchaseRate = lastKnownRate;
             }
 
@@ -598,21 +557,16 @@ namespace MGI_Inventory_Management.Controllers
 
             string performedBy = GetUserLabel();
 
-            // Get all records after the last deletion (same logic as ViewProduct)
             var allRecords = _context.Products
-                .Where(p => p.Name == existing.Name
-                         && p.CategoryId == existing.CategoryId)
-                .OrderByDescending(p => p.PublishedDate)
-                .ToList();
+                .Where(p => p.Name == existing.Name && p.CategoryId == existing.CategoryId)
+                .OrderByDescending(p => p.PublishedDate).ToList();
 
             var lastDeletion = allRecords
                 .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
 
             int currentNetQty;
-
             if (lastDeletion != null)
             {
-                // Only sum records after the last deletion
                 currentNetQty = allRecords
                     .Where(x => x.PublishedDate > lastDeletion.PublishedDate
                              && !x.Description.StartsWith("Stock removed by"))
@@ -620,7 +574,6 @@ namespace MGI_Inventory_Management.Controllers
             }
             else
             {
-                // No deletion ever — sum all non-removal records
                 currentNetQty = allRecords
                     .Where(x => !x.Description.StartsWith("Stock removed by"))
                     .Sum(x => (int?)x.Quantity) ?? 0;
@@ -632,12 +585,10 @@ namespace MGI_Inventory_Management.Controllers
             {
                 TempData["ErrorMessage"] =
                     $"Invalid quantity — current stock is {currentNetQty} units. " +
-                    $"You cannot subtract more than {currentNetQty} units. " +
-                    $"Minimum allowed entry is -{currentNetQty}.";
+                    $"You cannot subtract more than {currentNetQty} units.";
                 return RedirectToAction("ViewProduct");
             }
 
-            // Insert new record with delta quantity
             _context.Products.Add(new AddProduct
             {
                 Name = existing.Name,
@@ -648,7 +599,6 @@ namespace MGI_Inventory_Management.Controllers
                 Description = $"Stock edited by {performedBy}",
                 PublishedDate = DateTime.Now
             });
-
             _context.SaveChanges();
 
             TempData["SuccessMessage"] = "Product updated successfully!";
@@ -667,8 +617,6 @@ namespace MGI_Inventory_Management.Controllers
             string productName = product.Name;
             int categoryId = product.CategoryId;
 
-            // Insert log record with Quantity = 0
-            // Card visibility is controlled by isDeleted flag, not quantity sum
             _context.Products.Add(new AddProduct
             {
                 Name = productName,
@@ -679,7 +627,6 @@ namespace MGI_Inventory_Management.Controllers
                 Description = $"Stock removed by {performedBy}",
                 PublishedDate = DateTime.Now
             });
-
             _context.SaveChanges();
 
             TempData["SuccessMessage"] = "Product deleted successfully!";
@@ -702,17 +649,16 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // MAKE ORDER — Admin + Seller
+        // MAKE ORDER
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Seller,Manager")]
-        public IActionResult Order(int? categoryId = null, string? productName = null, decimal? unitPrice = null)
+        public IActionResult Order(int? categoryId = null, string? productName = null,
+            decimal? unitPrice = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.PrefilledCategoryId = categoryId;
             ViewBag.PrefilledProductName = productName;
             ViewBag.PrefilledUnitPrice = unitPrice;
-
-            // Auto-fetch current logged in user label
             ViewBag.CurrentUserLabel = GetUserLabel();
             return View();
         }
@@ -721,9 +667,9 @@ namespace MGI_Inventory_Management.Controllers
         [Authorize(Roles = "Admin,Seller,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Order(string orderedBy, string? shopName,
-    string? shopAddress, string? shopContact, string? sellerUserId,
-    List<int> categoryIds, List<string> productNames,
-    List<int> quantities, List<decimal> unitPrices)
+            string? shopAddress, string? shopContact, string? sellerUserId,
+            List<int> categoryIds, List<string> productNames,
+            List<int> quantities, List<decimal> unitPrices)
         {
             if (string.IsNullOrWhiteSpace(orderedBy) || categoryIds == null || categoryIds.Count == 0)
             {
@@ -734,11 +680,8 @@ namespace MGI_Inventory_Management.Controllers
             }
 
             var currentUser = await _userManager.GetUserAsync(User);
-
-            // If seller, assign to themselves; if Admin/Manager, use selected sellerUserId
             string? assignedSellerUserId = User.IsInRole("Seller")
-                ? currentUser?.Id
-                : sellerUserId;
+                ? currentUser?.Id : sellerUserId;
 
             var order = new Order
             {
@@ -775,12 +718,21 @@ namespace MGI_Inventory_Management.Controllers
             _context.Orders.Add(order);
             _context.SaveChanges();
 
+            _context.OrderActivityLogs.Add(new OrderActivityLog
+            {
+                OrderId = order.Id,
+                Action = "Created",
+                PerformedBy = GetUserLabel(),
+                PerformedAt = DateTime.Now
+            });
+            _context.SaveChanges();
+
             TempData["OrderSuccess"] = "Order placed successfully!";
             return RedirectToAction("OrderRequest");
         }
 
         // ─────────────────────────────────────────
-        // ORDER REQUEST — Admin + Manager + Seller
+        // ORDER REQUEST
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager,Seller")]
         public async Task<IActionResult> OrderRequest(int page = 1)
@@ -800,6 +752,12 @@ namespace MGI_Inventory_Management.Controllers
 
             int totalPages = (int)Math.Ceiling(all.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
+
+            var orderIds = all.Select(o => o.Id).ToList();
+            ViewBag.ActivityLogs = _context.OrderActivityLogs
+                .Where(l => orderIds.Contains(l.OrderId))
+                .OrderBy(l => l.PerformedAt)
+                .ToList();
 
             ViewBag.Orders = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.CurrentPage = page;
@@ -826,16 +784,26 @@ namespace MGI_Inventory_Management.Controllers
                         .Include(o => o.Items)
                         .Where(o => o.Status == "Approved" && o.Id != id)
                         .SelectMany(o => o.Items)
-                        .Where(i => i.ProductName == item.ProductName && i.CategoryId == item.CategoryId)
+                        .Where(i => i.ProductName == item.ProductName
+                                 && i.CategoryId == item.CategoryId)
                         .Sum(i => (int?)i.Quantity) ?? 0;
 
                     if (netStock - reservedStock < item.Quantity)
                     {
-                        TempData["OrderError"] = $"Not enough stock for '{item.ProductName}'!";
+                        TempData["OrderError"] =
+                            $"Not enough stock for '{item.ProductName}'!";
                         return RedirectToAction("OrderRequest");
                     }
                 }
+
                 order.Status = "Approved";
+                _context.OrderActivityLogs.Add(new OrderActivityLog
+                {
+                    OrderId = order.Id,
+                    Action = "Approved",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
                 _context.SaveChanges();
                 TempData["OrderSuccess"] = "Order approved!";
             }
@@ -845,7 +813,7 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Seller")]
+        [Authorize(Roles = "Admin,Manager,Seller")]
         [ValidateAntiForgeryToken]
         public IActionResult DeliverOrder(int id)
         {
@@ -870,7 +838,15 @@ namespace MGI_Inventory_Management.Controllers
                         PublishedDate = DateTime.Now
                     });
                 }
+
                 order.Status = "Delivered";
+                _context.OrderActivityLogs.Add(new OrderActivityLog
+                {
+                    OrderId = order.Id,
+                    Action = "Delivered",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
                 _context.SaveChanges();
                 TempData["OrderSuccess"] = "Order delivered & stock updated!";
             }
@@ -880,7 +856,7 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager,Seller")]
         [ValidateAntiForgeryToken]
         public IActionResult DeleteOrder(int id)
         {
@@ -888,6 +864,15 @@ namespace MGI_Inventory_Management.Controllers
 
             if (order != null && order.Status == "Pending")
             {
+                _context.OrderActivityLogs.Add(new OrderActivityLog
+                {
+                    OrderId = order.Id,
+                    Action = "Deleted",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
+                _context.SaveChanges();
+
                 _context.OrderItems.RemoveRange(order.Items);
                 _context.Orders.Remove(order);
                 _context.SaveChanges();
@@ -898,7 +883,7 @@ namespace MGI_Inventory_Management.Controllers
             return RedirectToAction("OrderRequest");
         }
 
-        [Authorize(Roles = "Admin,Seller")]
+        [Authorize(Roles = "Admin,Manager,Seller")]
         public IActionResult EditOrder(int id)
         {
             var order = _context.Orders
@@ -913,10 +898,10 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Seller")]
+        [Authorize(Roles = "Admin,Manager,Seller")]
         [ValidateAntiForgeryToken]
-        public IActionResult EditOrder(int id, string orderedBy, List<int> categoryIds,
-            List<string> productNames, List<int> quantities)
+        public IActionResult EditOrder(int id, string orderedBy,
+            List<int> categoryIds, List<string> productNames, List<int> quantities)
         {
             var order = _context.Orders.Include(o => o.Items).FirstOrDefault(o => o.Id == id);
 
@@ -929,7 +914,9 @@ namespace MGI_Inventory_Management.Controllers
             for (int i = 0; i < categoryIds.Count; i++)
             {
                 var product = _context.Products
-                    .Where(p => p.Name == productNames[i] && p.CategoryId == categoryIds[i] && p.SellingPrice > 0)
+                    .Where(p => p.Name == productNames[i]
+                             && p.CategoryId == categoryIds[i]
+                             && p.SellingPrice > 0)
                     .OrderByDescending(p => p.PublishedDate).FirstOrDefault();
 
                 if (product == null)
@@ -947,16 +934,24 @@ namespace MGI_Inventory_Management.Controllers
                 });
             }
 
+            _context.OrderActivityLogs.Add(new OrderActivityLog
+            {
+                OrderId = order.Id,
+                Action = "Edited",
+                PerformedBy = GetUserLabel(),
+                PerformedAt = DateTime.Now
+            });
             _context.SaveChanges();
             TempData["OrderSuccess"] = "Order updated!";
             return RedirectToAction("OrderRequest");
         }
 
         // ─────────────────────────────────────────
-        // ORDER HISTORY — Admin + Manager + Seller
+        // ORDER HISTORY
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager,Seller")]
-        public async Task<IActionResult> OrderHistory(int page = 1, string? sellerFilter = null)
+        public async Task<IActionResult> OrderHistory(int page = 1,
+            string? sellerFilter = null)
         {
             int pageSize = 10;
             var currentUser = await _userManager.GetUserAsync(User);
@@ -1006,7 +1001,6 @@ namespace MGI_Inventory_Management.Controllers
 
             if (order == null) return NotFound();
 
-            // Seller can only download their own order
             if (isSeller && order.SellerUserId != currentUser?.Id)
                 return Forbid();
 
@@ -1020,14 +1014,17 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [Authorize(Roles = "Admin,Manager,Seller")]
-        public async Task<IActionResult> DownloadMonthlyOrderInvoice(int month, int year, string? sellerFilter = null)
+        public async Task<IActionResult> DownloadMonthlyOrderInvoice(
+            int month, int year, string? sellerFilter = null)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             var isSeller = User.IsInRole("Seller");
 
             var query = _context.Orders
                 .Include(o => o.Items).ThenInclude(i => i.Category)
-                .Where(o => o.OrderDate.Month == month && o.OrderDate.Year == year && o.Status == "Delivered")
+                .Where(o => o.OrderDate.Month == month
+                         && o.OrderDate.Year == year
+                         && o.Status == "Delivered")
                 .AsQueryable();
 
             if (isSeller)
@@ -1053,17 +1050,16 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // MAKE PURCHASE — Admin + Manager
+        // MAKE PURCHASE
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
-        public IActionResult PurchaseProduct(int? categoryId = null, string? productName = null, decimal? unitPrice = null)
+        public IActionResult PurchaseProduct(int? categoryId = null,
+            string? productName = null, decimal? unitPrice = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.PrefilledCategoryId = categoryId;
             ViewBag.PrefilledProductName = productName;
             ViewBag.PrefilledUnitPrice = unitPrice;
-
-            // Auto-fetch current logged in user label
             ViewBag.CurrentUserLabel = GetUserLabel();
             return View();
         }
@@ -1072,12 +1068,12 @@ namespace MGI_Inventory_Management.Controllers
         [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PurchaseProduct(string purchasedBy,
-    string? shopName, string? shopAddress, string? shopContact,
-    string? supplierUserId, List<int> categoryIds,
-    List<string> productNames, List<int> quantities,
-    List<decimal> purchasePrices)
+            string? supplierUserId, List<int> categoryIds,
+            List<string> productNames, List<int> quantities,
+            List<decimal> purchasePrices)
         {
-            if (string.IsNullOrWhiteSpace(purchasedBy) || categoryIds == null || categoryIds.Count == 0)
+            if (string.IsNullOrWhiteSpace(purchasedBy)
+                || categoryIds == null || categoryIds.Count == 0)
             {
                 TempData["Error"] = "Please fill all required fields.";
                 ViewBag.Categories = _context.Categories.ToList();
@@ -1085,21 +1081,23 @@ namespace MGI_Inventory_Management.Controllers
                 return View();
             }
 
-            var currentUser = await _userManager.GetUserAsync(User);
+            if (string.IsNullOrWhiteSpace(supplierUserId))
+            {
+                TempData["Error"] = "Please assign a supplier.";
+                ViewBag.Categories = _context.Categories.ToList();
+                ViewBag.CurrentUserLabel = GetUserLabel();
+                return View();
+            }
 
-            // Supplier assigns to themselves; Admin/Manager use selected supplierUserId
+            var currentUser = await _userManager.GetUserAsync(User);
             string? assignedSupplierUserId = User.IsInRole("Supplier")
-                ? currentUser?.Id
-                : supplierUserId;
+                ? currentUser?.Id : supplierUserId;
 
             var purchase = new Purchase
             {
                 PurchasedBy = purchasedBy,
                 PurchaseDate = DateTime.Now,
                 Status = "Pending",
-                ShopName = shopName,
-                ShopAddress = shopAddress,
-                ShopContact = shopContact,
                 SupplierUserId = assignedSupplierUserId
             };
 
@@ -1118,12 +1116,21 @@ namespace MGI_Inventory_Management.Controllers
             _context.Purchases.Add(purchase);
             _context.SaveChanges();
 
+            _context.PurchaseActivityLogs.Add(new PurchaseActivityLog
+            {
+                PurchaseId = purchase.Id,
+                Action = "Created",
+                PerformedBy = GetUserLabel(),
+                PerformedAt = DateTime.Now
+            });
+            _context.SaveChanges();
+
             TempData["Success"] = "Purchase request created!";
             return RedirectToAction("PurchaseRequest");
         }
 
         // ─────────────────────────────────────────
-        // PURCHASE REQUEST — Admin + Manager + Supplier
+        // PURCHASE REQUEST
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager,Supplier")]
         public async Task<IActionResult> PurchaseRequest(int page = 1)
@@ -1144,6 +1151,12 @@ namespace MGI_Inventory_Management.Controllers
             int totalPages = (int)Math.Ceiling(all.Count / (double)pageSize);
             if (totalPages == 0) totalPages = 1;
 
+            var purchaseIds = all.Select(p => p.Id).ToList();
+            ViewBag.ActivityLogs = _context.PurchaseActivityLogs
+                .Where(l => purchaseIds.Contains(l.PurchaseId))
+                .OrderBy(l => l.PerformedAt)
+                .ToList();
+
             ViewBag.Purchases = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = totalPages;
@@ -1155,11 +1168,19 @@ namespace MGI_Inventory_Management.Controllers
         [ValidateAntiForgeryToken]
         public IActionResult ApprovePurchase(int id)
         {
-            var purchase = _context.Purchases.Include(p => p.Items).FirstOrDefault(p => p.Id == id);
+            var purchase = _context.Purchases
+                .Include(p => p.Items).FirstOrDefault(p => p.Id == id);
 
             if (purchase != null && purchase.Status == "Pending")
             {
                 purchase.Status = "Approved";
+                _context.PurchaseActivityLogs.Add(new PurchaseActivityLog
+                {
+                    PurchaseId = purchase.Id,
+                    Action = "Approved",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
                 _context.SaveChanges();
                 TempData["Success"] = "Purchase approved!";
             }
@@ -1169,14 +1190,24 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Manager,Supplier")]
         [ValidateAntiForgeryToken]
         public IActionResult DeletePurchase(int id)
         {
-            var purchase = _context.Purchases.Include(p => p.Items).FirstOrDefault(p => p.Id == id);
+            var purchase = _context.Purchases
+                .Include(p => p.Items).FirstOrDefault(p => p.Id == id);
 
             if (purchase != null && purchase.Status == "Pending")
             {
+                _context.PurchaseActivityLogs.Add(new PurchaseActivityLog
+                {
+                    PurchaseId = purchase.Id,
+                    Action = "Deleted",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
+                _context.SaveChanges();
+
                 _context.PurchaseItems.RemoveRange(purchase.Items);
                 _context.Purchases.Remove(purchase);
                 _context.SaveChanges();
@@ -1188,19 +1219,23 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Manager,Supplier")]
         [ValidateAntiForgeryToken]
         public IActionResult DeliverPurchase(int id)
         {
-            var purchase = _context.Purchases.Include(p => p.Items).FirstOrDefault(p => p.Id == id);
+            var purchase = _context.Purchases
+                .Include(p => p.Items).FirstOrDefault(p => p.Id == id);
 
             if (purchase != null && purchase.Status == "Approved")
             {
                 foreach (var item in purchase.Items)
                 {
                     var lastKnownSellingPrice = _context.Products
-                        .Where(p => p.Name == item.ProductName && p.CategoryId == item.CategoryId && p.SellingPrice > 0)
-                        .OrderByDescending(p => p.PublishedDate).Select(p => p.SellingPrice).FirstOrDefault();
+                        .Where(p => p.Name == item.ProductName
+                                 && p.CategoryId == item.CategoryId
+                                 && p.SellingPrice > 0)
+                        .OrderByDescending(p => p.PublishedDate)
+                        .Select(p => p.SellingPrice).FirstOrDefault();
 
                     _context.Products.Add(new AddProduct
                     {
@@ -1215,6 +1250,13 @@ namespace MGI_Inventory_Management.Controllers
                 }
 
                 purchase.Status = "Delivered";
+                _context.PurchaseActivityLogs.Add(new PurchaseActivityLog
+                {
+                    PurchaseId = purchase.Id,
+                    Action = "Delivered",
+                    PerformedBy = GetUserLabel(),
+                    PerformedAt = DateTime.Now
+                });
                 _context.SaveChanges();
                 TempData["Success"] = "Purchase delivered & stock updated!";
             }
@@ -1224,10 +1266,69 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         // ─────────────────────────────────────────
-        // PURCHASE HISTORY — Admin + Manager + Supplier
+        // EDIT PURCHASE
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager,Supplier")]
-        public async Task<IActionResult> PurchaseHistory(int page = 1, string? supplierFilter = null)
+        public IActionResult EditPurchase(int id)
+        {
+            var purchase = _context.Purchases
+                .Include(p => p.Items).ThenInclude(i => i.Category)
+                .FirstOrDefault(p => p.Id == id);
+
+            if (purchase == null || purchase.Status != "Pending")
+                return RedirectToAction("PurchaseRequest");
+
+            ViewBag.Categories = _context.Categories.ToList();
+            return View(purchase);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Admin,Manager,Supplier")]
+        [ValidateAntiForgeryToken]
+        public IActionResult EditPurchase(int id, string purchasedBy,
+            List<int> categoryIds, List<string> productNames,
+            List<int> quantities, List<decimal> purchasePrices)
+        {
+            var purchase = _context.Purchases
+                .Include(p => p.Items).FirstOrDefault(p => p.Id == id);
+
+            if (purchase == null || purchase.Status != "Pending")
+                return RedirectToAction("PurchaseRequest");
+
+            purchase.PurchasedBy = purchasedBy;
+            _context.PurchaseItems.RemoveRange(purchase.Items);
+
+            for (int i = 0; i < categoryIds.Count; i++)
+            {
+                purchase.Items.Add(new PurchaseItem
+                {
+                    PurchaseId = purchase.Id,
+                    CategoryId = categoryIds[i],
+                    ProductName = productNames[i],
+                    Quantity = quantities[i],
+                    PurchasePrice = purchasePrices != null && purchasePrices.Count > i
+                        ? purchasePrices[i] : 0
+                });
+            }
+
+            _context.PurchaseActivityLogs.Add(new PurchaseActivityLog
+            {
+                PurchaseId = purchase.Id,
+                Action = "Edited",
+                PerformedBy = GetUserLabel(),
+                PerformedAt = DateTime.Now
+            });
+            _context.SaveChanges();
+            TempData["Success"] = "Purchase updated!";
+            return RedirectToAction("PurchaseRequest");
+        }
+
+        // ─────────────────────────────────────────
+        // PURCHASE HISTORY
+        // ─────────────────────────────────────────
+        [Authorize(Roles = "Admin,Manager,Supplier")]
+        public async Task<IActionResult> PurchaseHistory(int page = 1,
+            string? supplierFilter = null)
         {
             int pageSize = 10;
             var currentUser = await _userManager.GetUserAsync(User);
@@ -1256,12 +1357,16 @@ namespace MGI_Inventory_Management.Controllers
             if (!isSupplier)
             {
                 var suppliers = await _userManager.GetUsersInRoleAsync("Supplier");
-                ViewBag.Suppliers = suppliers.Select(s => new { s.Id, s.FullName }).ToList();
+                ViewBag.Suppliers = suppliers
+                    .Select(s => new { s.Id, s.FullName }).ToList();
             }
 
             return View();
         }
 
+        // ─────────────────────────────────────────
+        // PURCHASE INVOICES
+        // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager,Supplier")]
         public async Task<IActionResult> DownloadPurchaseInvoice(int id)
         {
@@ -1287,14 +1392,17 @@ namespace MGI_Inventory_Management.Controllers
         }
 
         [Authorize(Roles = "Admin,Manager,Supplier")]
-        public async Task<IActionResult> DownloadMonthlyPurchaseInvoice(int month, int year, string? supplierFilter = null)
+        public async Task<IActionResult> DownloadMonthlyPurchaseInvoice(
+            int month, int year, string? supplierFilter = null)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             var isSupplier = User.IsInRole("Supplier");
 
             var query = _context.Purchases
                 .Include(p => p.Items).ThenInclude(i => i.Category)
-                .Where(p => p.PurchaseDate.Month == month && p.PurchaseDate.Year == year && p.Status == "Delivered")
+                .Where(p => p.PurchaseDate.Month == month
+                         && p.PurchaseDate.Year == year
+                         && p.Status == "Delivered")
                 .AsQueryable();
 
             if (isSupplier)
@@ -1318,6 +1426,10 @@ namespace MGI_Inventory_Management.Controllers
                 CustomSwitches = "--background --print-media-type"
             };
         }
+
+        // ─────────────────────────────────────────
+        // HELPER
+        // ─────────────────────────────────────────
         private string GetUserLabel()
         {
             var user = _context.Users
@@ -1334,8 +1446,7 @@ namespace MGI_Inventory_Management.Controllers
                 : "";
 
             string fullName = !string.IsNullOrEmpty(user.FullName)
-                ? user.FullName
-                : user.UserName ?? "Unknown";
+                ? user.FullName : user.UserName ?? "Unknown";
 
             return string.IsNullOrEmpty(roleName)
                 ? fullName

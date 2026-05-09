@@ -1,9 +1,9 @@
-﻿@await Html.PartialAsync("_BackButton")
+﻿@using MGI_Inventory_Management.Models
+@await Html.PartialAsync("_BackButton")
 
 <div class="container mt-4">
-
-    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff;">
-        <h4 class="mb-0">Purchase Requests</h4>
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#198754;">
+        <h4 class="mb-0 text-white">Purchase Requests</h4>
     </div>
 
     @if (TempData["Success"] != null)
@@ -16,137 +16,198 @@
     }
 
     <div class="text-end mb-3">
-        <a asp-action="PurchaseProduct" class="btn btn-primary">+ Make New Purchase</a>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+            <a asp-action="PurchaseProduct" class="btn btn-success">
+                <i class="bi bi-plus-lg me-1"></i>Make New Purchase
+            </a>
+        }
     </div>
+
+    @{
+        var allPurchaseLogs = ViewBag.ActivityLogs as List<PurchaseActivityLog>
+                              ?? new List<PurchaseActivityLog>();
+    }
 
     @if (ViewBag.Purchases != null && ((IEnumerable<dynamic>)ViewBag.Purchases).Any())
     {
         @foreach (var purchase in ViewBag.Purchases)
         {
+            string status = purchase.Status;
+            string badgeCss = status == "Pending" ? "background:#ffc107;color:#000;" :
+                              status == "Approved" ? "background:#0d6efd;color:#fff;" :
+                                                      "background:#198754;color:#fff;";
+
+            var purchaseLogs = allPurchaseLogs
+                .Where(l => l.PurchaseId == (int)purchase.Id).ToList();
+
             <div class="card shadow mb-4">
 
-                <!-- CARD HEADER -->
+                <!-- HEADER: status only -->
                 <div class="card-header d-flex justify-content-between align-items-center"
-                     style="background:#f0f8ff;">
-                    <div>
-                        <strong>Purchase #@purchase.Id</strong> &nbsp;|&nbsp;
-                        <span>@purchase.PurchasedBy</span> &nbsp;|&nbsp;
-                        <span>@purchase.PurchaseDate.ToString("dd MMM yyyy hh:mm tt")</span>
+                     style="background:#f0fff4;">
+                    <div style="font-size:0.95rem;">
+                        <strong>Purchase #@purchase.Id</strong>
+                        &nbsp;|&nbsp; @purchase.PurchasedBy
+                        &nbsp;|&nbsp;
+                        <small class="text-muted">
+                            @purchase.PurchaseDate.ToString("dd MMM yyyy hh:mm tt")
+                        </small>
                     </div>
-                    <div>
-                        @if (purchase.Status == "Pending")
+                    <span style="@badgeCss padding:4px 14px;
+                        border-radius:50px; font-size:0.82rem;
+                        font-weight:600;">
+                        @status
+                    </span>
+                </div>
+
+                <!-- ITEMS TABLE -->
+                <div class="card-body pb-2">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm mb-2">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Category</th>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Purchase Rate (৳)</th>
+                                    <th>Line Total (৳)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int s = 1;
+                                }
+                                @foreach (var item in purchase.Items)
+                                {
+                                    <tr>
+                                        <td>@s</td>
+                                        <td>@item.Category?.Name</td>
+                                        <td>@item.ProductName</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@item.PurchasePrice.ToString("F2")</td>
+                                        <td>@((item.Quantity * item.PurchasePrice).ToString("F2"))</td>
+                                    </tr>
+                                    s++;
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="text-end fw-bold">Grand Total:</td>
+                                    <td class="fw-bold" style="color:#198754;">
+                                        ৳ @((purchase.Items as IEnumerable<PurchaseItem>)
+                                                                                      .Sum(i => i.Quantity * i.PurchasePrice).ToString("F2"))
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="d-flex gap-2 flex-wrap mt-2">
+
+                        @if (status == "Pending")
                         {
+                            @* Approve: Admin + Supplier only, NOT Manager *@
                             @if (User.IsInRole("Admin") || User.IsInRole("Supplier"))
                             {
                                 <form asp-action="ApprovePurchase" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@purchase.Id" />
-                                    <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="bi bi-check-lg me-1"></i>Approve
+                                    </button>
                                 </form>
-                                <form asp-action="DeletePurchase" method="post" style="display:inline"
+                            }
+
+                            @* Edit + Delete: Admin, Manager, Supplier while Pending *@
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
+                            {
+                                <a asp-action="EditPurchase" asp-route-id="@purchase.Id"
+                                       class="btn btn-sm btn-warning">
+                                    <i class="bi bi-pencil-fill me-1"></i>Edit
+                                </a>
+
+                                <form asp-action="DeletePurchase" method="post"
                                       onsubmit="return confirm('Delete this purchase?')">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@purchase.Id" />
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash-fill me-1"></i>Delete
+                                    </button>
                                 </form>
                             }
                         }
 
-                        @if (purchase.Status == "Approved" && (User.IsInRole("Admin") || User.IsInRole("Supplier")))
+                        @if (status == "Approved")
                         {
-                            <form asp-action="DeliverPurchase" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@purchase.Id" />
-                                <button type="submit" class="btn btn-sm btn-primary">Mark as Delivered</button>
-                            </form>
-                        }
-                    </div>
-                </div>
-
-                <!-- CARD BODY -->
-                <div class="card-body">
-                    <table class="table table-bordered table-sm">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>#</th>
-                                <th>Category</th>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Unit Price (BDT)</th>
-                                <th>Total (BDT)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @{
-                                int s = 1;
-                            }
-                            @foreach (var item in purchase.Items)
-                            {
-                                <tr>
-                                    <td>@s</td>
-                                    <td>@item.Category?.Name</td>
-                                    <td>@item.ProductName</td>
-                                    <td>@item.Quantity</td>
-                                    <td>@item.PurchasePrice.ToString("F2")</td>
-                                    <td>@((item.Quantity * item.PurchasePrice).ToString("F2"))</td>
-                                </tr>
-                                s++;
-                            }
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="5" class="text-end fw-bold">Grand Total:</td>
-                                <td class="fw-bold" style="color:#00aaff;">
-                                    @((purchase.Items as IEnumerable<MGI_Inventory_Management.Models.PurchaseItem>)
-                                        .Sum(i => i.Quantity * i.PurchasePrice).ToString("F2")) BDT
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <!-- ACTION BUTTONS -->
-                    <div class="d-flex gap-2 mt-2">
-
-                        @if (purchase.Status == "Pending")
-                        {
-                            <!-- Approve -->
-                            <form asp-action="ApprovePurchase" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@purchase.Id" />
-                                <button type="submit" class="btn btn-sm btn-success">
-                                    Approve
-                                </button>
-                            </form>
-
-                            <!-- Delete -->
-                            <form asp-action="DeletePurchase" method="post"
-                                  onsubmit="return confirm('Delete this purchase request?')">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@purchase.Id" />
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
-                        }
-
-                        @if (purchase.Status == "Approved")
-                        {
-                            <!-- Mark Delivered → STOCK ADDED HERE -->
                             <form asp-action="DeliverPurchase" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="id" value="@purchase.Id" />
                                 <button type="submit" class="btn btn-sm btn-primary">
-                                    Mark as Delivered
+                                    <i class="bi bi-truck me-1"></i>Mark as Delivered
                                 </button>
                             </form>
                         }
 
-                        @if (purchase.Status == "Delivered")
+                        @if (status == "Delivered")
                         {
-                            <span class="text-success fw-bold">✔ Delivered & Stock Updated</span>
+                            <span class="text-success fw-bold">
+                                <i class="bi bi-check-circle-fill me-1"></i>Delivered & Stock Updated
+                            </span>
                         }
-
                     </div>
-                </div>
 
+                    <!-- ACTIVITY LOG -->
+                    @if (purchaseLogs.Any())
+                    {
+                        <div style="margin-top:16px; border-top:1px solid #e0e0e0; padding-top:12px;">
+                            <div style="font-size:0.8rem; font-weight:700;
+                                color:#888; margin-bottom:8px;
+                                text-transform:uppercase; letter-spacing:0.05em;">
+                                Activity Log
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:6px;">
+                                @foreach (var log in purchaseLogs)
+                                {
+                                    string dotColor =
+                                        log.Action == "Created" ? "#6c757d" :
+                                        log.Action == "Approved" ? "#198754" :
+                                        log.Action == "Edited" ? "#ffc107" :
+                                        log.Action == "Deleted" ? "#dc3545" :
+                                        log.Action == "Delivered" ? "#0d6efd" : "#aaa";
+
+                                    string actionBadge =
+                                        log.Action == "Created" ? "bg-secondary" :
+                                        log.Action == "Approved" ? "bg-success" :
+                                        log.Action == "Edited" ? "bg-warning text-dark" :
+                                        log.Action == "Deleted" ? "bg-danger" :
+                                        log.Action == "Delivered" ? "bg-primary" : "bg-light";
+
+                                    <div style="display:flex; align-items:center; gap:10px;
+                                        font-size:0.82rem;">
+                                        <span style="width:10px; height:10px; border-radius:50%;
+                                        background:@dotColor; flex-shrink:0;"></span>
+                                        <span class="badge @actionBadge"
+                                              style="font-size:0.75rem; min-width:68px;">
+                                            @log.Action
+                                        </span>
+                                        <span style="color:#555;">
+                                            by
+                                            <span style="font-weight:600; color:#1a1a1a;">
+                                                @log.PerformedBy
+                                            </span>
+                                        </span>
+                                        <span style="color:#aaa; margin-left:auto;">
+                                            @log.PerformedAt.ToString("dd MMM yyyy hh:mm tt")
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
             </div>
         }
 
@@ -155,17 +216,19 @@
             @if (ViewBag.CurrentPage > 1)
             {
                 <a href="@Url.Action("PurchaseRequest", new { page = ViewBag.CurrentPage - 1 })"
-                   class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+                   class="btn btn-sm btn-outline-success">&#8592; Prev</a>
             }
             @for (int i = 1; i <= ViewBag.TotalPages; i++)
             {
                 <a href="@Url.Action("PurchaseRequest", new { page = i })"
-                   class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">@i</a>
+                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-success" : "btn-outline-success")">
+                    @i
+                </a>
             }
             @if (ViewBag.CurrentPage < ViewBag.TotalPages)
             {
                 <a href="@Url.Action("PurchaseRequest", new { page = ViewBag.CurrentPage + 1 })"
-                   class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+                   class="btn btn-sm btn-outline-success">Next &#8594;</a>
             }
         </div>
     }

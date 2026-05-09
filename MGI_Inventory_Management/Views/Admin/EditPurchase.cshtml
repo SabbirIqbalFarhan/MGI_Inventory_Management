@@ -1,0 +1,230 @@
+﻿@model MGI_Inventory_Management.Models.Purchase
+@await Html.PartialAsync("_BackButton")
+
+<div class="container mt-4">
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#198754;">
+        <h4 class="mb-0 text-white">Edit Purchase #@Model.Id</h4>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="card p-4 shadow">
+        <form asp-action="EditPurchase" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.Id" />
+
+            <!-- Purchased By (read-only) -->
+            <div class="mb-3">
+                <label class="fw-bold form-label">Purchase Made By</label>
+                <input type="text" name="purchasedBy"
+                       class="form-control"
+                       value="@Model.PurchasedBy"
+                       readonly
+                       style="background:#f0f0f0; cursor:not-allowed;" />
+            </div>
+
+            <hr />
+            <h5 style="color:#198754;" class="mb-3">Purchase Items</h5>
+            <div id="purchaseItemsContainer"></div>
+
+            <button type="button" class="btn btn-outline-success btn-sm mt-2"
+                    onclick="addPurchaseRow()">
+                <i class="bi bi-plus-lg me-1"></i>Add Another Item
+            </button>
+
+            <hr />
+
+            <!-- GRAND TOTAL -->
+            <div style="background:#f0fff4; border:1px solid #b7ebc8;
+                border-radius:10px; padding:16px 20px; margin-bottom:20px;">
+                <div style="display:flex; justify-content:space-between;
+                    align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <div style="font-size:0.82rem; color:#555; margin-bottom:2px;">
+                            Total Items
+                        </div>
+                        <div style="font-size:1.1rem; font-weight:700; color:#1a1a1a;"
+                             id="totalItemsDisplay">
+                            0 item(s)
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.82rem; color:#555; margin-bottom:2px;">
+                            Grand Total
+                        </div>
+                        <div style="font-size:1.6rem; font-weight:700; color:#198754;"
+                             id="grandTotalDisplay">
+                            ৳ 0.00
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn text-white px-4" style="background:#198754;">
+                <i class="bi bi-save-fill me-1"></i>Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var allCategories = @Html.Raw(
+                    System.Text.Json.JsonSerializer.Serialize(
+                            ((IEnumerable<MGI_Inventory_Management.Models.Category>)ViewBag.Categories)
+                            .Select(c => new { id = c.Id, name = c.Name })
+                    )
+            );
+
+        // Existing items pre-loaded from model
+        var existingItems = @Html.Raw(
+                    System.Text.Json.JsonSerializer.Serialize(
+                            Model.Items.Select(i => new
+                            {
+                                    categoryId = i.CategoryId,
+                                    productName = i.ProductName,
+                                    quantity = i.Quantity,
+                                    purchasePrice = i.PurchasePrice
+                            })
+                    )
+            );
+
+        var rowIndex = 0;
+
+        function recalcTotal() {
+            var rows  = document.querySelectorAll('.purchase-row');
+            var grand = 0;
+            var count = 0;
+
+            rows.forEach(function(row) {
+                var price  = parseFloat(row.querySelector('.js-unit-price')?.value) || 0;
+                var qty    = parseInt(row.querySelector('.js-quantity')?.value)     || 0;
+                var line   = price * qty;
+                var lineEl = row.querySelector('.js-line-total');
+                if (lineEl) lineEl.textContent = '৳ ' + line.toFixed(2);
+                grand += line;
+                count++;
+            });
+
+            document.getElementById('grandTotalDisplay').textContent =
+                '৳ ' + grand.toFixed(2);
+            document.getElementById('totalItemsDisplay').textContent =
+                count + ' item(s)';
+        }
+
+        function addPurchaseRow(catId, prodName, qty, price) {
+            var container = document.getElementById('purchaseItemsContainer');
+            var idx = rowIndex++;
+
+            var catOptions = '<option value="">-- Select --</option>';
+            allCategories.forEach(function(c) {
+                catOptions += '<option value="' + c.id + '">' + c.name + '</option>';
+            });
+
+            var div = document.createElement('div');
+            div.className = 'purchase-row mb-3 p-3';
+            div.id = 'purchaseRow_' + idx;
+            div.style.cssText =
+                'background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;';
+
+            div.innerHTML =
+                '<div class="row g-2 align-items-end">' +
+
+                    '<div class="col-md-3">' +
+                        '<label class="form-label fw-bold" style="font-size:0.85rem;">Category</label>' +
+                        '<select name="categoryIds" class="form-select form-select-sm" ' +
+                                'id="pcat_' + idx + '" ' +
+                                'onchange="loadProducts(this,' + idx + ')">' +
+                            catOptions +
+                        '</select>' +
+                    '</div>' +
+
+                    '<div class="col-md-3">' +
+                        '<label class="form-label fw-bold" style="font-size:0.85rem;">Product</label>' +
+                        '<select name="productNames" class="form-select form-select-sm" ' +
+                                'id="pprod_' + idx + '">' +
+                            '<option value="">-- Select Category First --</option>' +
+                        '</select>' +
+                    '</div>' +
+
+                    '<div class="col-md-2">' +
+                        '<label class="form-label fw-bold" style="font-size:0.85rem;">Purchase Rate (৳)</label>' +
+                        '<input type="number" name="purchasePrices" id="pprice_' + idx + '" ' +
+                               'class="form-control form-control-sm js-unit-price" ' +
+                               'step="0.01" min="0" value="' + (price || '') + '" ' +
+                               'oninput="recalcTotal()" />' +
+                    '</div>' +
+
+                    '<div class="col-md-2">' +
+                        '<label class="form-label fw-bold" style="font-size:0.85rem;">Quantity</label>' +
+                        '<input type="number" name="quantities" ' +
+                               'class="form-control form-control-sm js-quantity" ' +
+                               'min="1" value="' + (qty || 1) + '" ' +
+                               'oninput="recalcTotal()" />' +
+                    '</div>' +
+
+                    '<div class="col-md-2">' +
+                        '<label class="form-label fw-bold" style="font-size:0.85rem;">Line Total</label>' +
+                        '<div class="form-control form-control-sm js-line-total" ' +
+                             'style="background:#e8f5e9; color:#155724; ' +
+                                    'font-weight:600; font-size:0.88rem; ' +
+                                    'display:flex; align-items:center;">৳ 0.00</div>' +
+                    '</div>' +
+
+                '</div>';
+
+            container.appendChild(div);
+
+            if (catId && catId > 0) {
+                var catSel = document.getElementById('pcat_' + idx);
+                catSel.value = catId;
+                loadProducts(catSel, idx, prodName, price);
+            }
+
+            recalcTotal();
+        }
+
+        function loadProducts(catSelect, idx, preSelectProduct, preSelectPrice) {
+            var categoryId = catSelect.value;
+            var prodSelect = document.getElementById('pprod_' + idx);
+            prodSelect.innerHTML = '<option value="">Loading...</option>';
+
+            fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
+                .then(r => r.json())
+                .then(products => {
+                    prodSelect.innerHTML = '<option value="">-- Select Product --</option>';
+                    products.forEach(p => {
+                        var opt = document.createElement('option');
+                        opt.value = p.productName;
+                        opt.textContent = p.productName;
+                        prodSelect.appendChild(opt);
+                    });
+
+                    if (preSelectProduct) {
+                        prodSelect.value = preSelectProduct;
+                    }
+
+                    recalcTotal();
+                });
+        }
+
+        // Pre-load existing items on page load
+        window.addEventListener('load', function() {
+            if (existingItems && existingItems.length > 0) {
+                existingItems.forEach(function(item) {
+                    addPurchaseRow(
+                        item.categoryId,
+                        item.productName,
+                        item.quantity,
+                        item.purchasePrice
+                    );
+                });
+            } else {
+                addPurchaseRow();
+            }
+        });
+    </script>
+}
