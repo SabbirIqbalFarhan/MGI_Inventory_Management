@@ -621,17 +621,15 @@ namespace MGI_Inventory_Management.Controllers
             string performedBy = GetUserLabel();
             string productName = product.Name;
             int categoryId = product.CategoryId;
-            decimal lastPurchaseRate = product.PurchaseRate;
-            decimal lastSellingPrice = product.SellingPrice;
 
-            // Get net quantity
+            // Get net quantity from all active records
             var netQuantity = _context.Products
                 .Where(p => p.Name == productName
                          && p.CategoryId == categoryId
                          && !p.Description.StartsWith("Stock removed by"))
                 .Sum(p => (int?)p.Quantity) ?? 0;
 
-            // Step 1: Insert NEW log record with negative offset to zero out stock
+            // ONLY insert a new log record — do NOT delete any previous records
             _context.Products.Add(new AddProduct
             {
                 Name = productName,
@@ -643,24 +641,6 @@ namespace MGI_Inventory_Management.Controllers
                 PublishedDate = DateTime.Now
             });
 
-            _context.SaveChanges();
-
-            // Step 2: Remove all records EXCEPT the new log record
-            var newLogId = _context.Products
-                .Where(p => p.Name == productName
-                         && p.CategoryId == categoryId
-                         && p.Description == $"Stock removed by {performedBy}")
-                .OrderByDescending(p => p.PublishedDate)
-                .Select(p => p.Id)
-                .First();
-
-            var toDelete = _context.Products
-                .Where(p => p.Name == productName
-                         && p.CategoryId == categoryId
-                         && p.Id != newLogId)
-                .ToList();
-
-            _context.Products.RemoveRange(toDelete);
             _context.SaveChanges();
 
             TempData["SuccessMessage"] = "Product deleted successfully!";
