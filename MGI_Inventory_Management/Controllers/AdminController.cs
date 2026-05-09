@@ -705,28 +705,40 @@ namespace MGI_Inventory_Management.Controllers
         // MAKE ORDER — Admin + Seller
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Seller,Manager")]
-        public IActionResult Order(int? categoryId = null, string? productName = null)
+        public IActionResult Order(int? categoryId = null, string? productName = null, decimal? unitPrice = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.PrefilledCategoryId = categoryId;
             ViewBag.PrefilledProductName = productName;
+            ViewBag.PrefilledUnitPrice = unitPrice;
+
+            // Auto-fetch current logged in user label
+            ViewBag.CurrentUserLabel = GetUserLabel();
             return View();
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Seller")]
+        [Authorize(Roles = "Admin,Seller,Manager")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Order(string orderedBy, string? shopName, string? shopAddress,
-            string? shopContact, List<int> categoryIds, List<string> productNames, List<int> quantities)
+        public async Task<IActionResult> Order(string orderedBy, string? shopName,
+    string? shopAddress, string? shopContact, string? sellerUserId,
+    List<int> categoryIds, List<string> productNames,
+    List<int> quantities, List<decimal> unitPrices)
         {
             if (string.IsNullOrWhiteSpace(orderedBy) || categoryIds == null || categoryIds.Count == 0)
             {
-                TempData["OrderError"] = "Please fill all fields.";
+                TempData["OrderError"] = "Please fill all required fields.";
                 ViewBag.Categories = _context.Categories.ToList();
+                ViewBag.CurrentUserLabel = GetUserLabel();
                 return View();
             }
 
             var currentUser = await _userManager.GetUserAsync(User);
+
+            // If seller, assign to themselves; if Admin/Manager, use selected sellerUserId
+            string? assignedSellerUserId = User.IsInRole("Seller")
+                ? currentUser?.Id
+                : sellerUserId;
 
             var order = new Order
             {
@@ -736,26 +748,27 @@ namespace MGI_Inventory_Management.Controllers
                 ShopName = shopName,
                 ShopAddress = shopAddress,
                 ShopContact = shopContact,
-                SellerUserId = currentUser?.Id
+                SellerUserId = assignedSellerUserId
             };
 
             for (int i = 0; i < categoryIds.Count; i++)
             {
-                var product = _context.Products
-                    .Where(p => p.Name == productNames[i] && p.CategoryId == categoryIds[i] && p.SellingPrice > 0)
-                    .OrderByDescending(p => p.PublishedDate).FirstOrDefault();
-
-                if (product == null)
-                    product = _context.Products
-                        .Where(p => p.Name == productNames[i] && p.CategoryId == categoryIds[i])
-                        .OrderByDescending(p => p.PublishedDate).FirstOrDefault();
+                decimal price = (unitPrices != null && unitPrices.Count > i && unitPrices[i] > 0)
+                    ? unitPrices[i]
+                    : (_context.Products
+                        .Where(p => p.Name == productNames[i]
+                                 && p.CategoryId == categoryIds[i]
+                                 && p.SellingPrice > 0)
+                        .OrderByDescending(p => p.PublishedDate)
+                        .Select(p => p.SellingPrice)
+                        .FirstOrDefault());
 
                 order.Items.Add(new OrderItem
                 {
                     CategoryId = categoryIds[i],
                     ProductName = productNames[i],
                     Quantity = quantities[i],
-                    SellingPrice = product?.SellingPrice ?? 0
+                    SellingPrice = price
                 });
             }
 
@@ -1043,29 +1056,41 @@ namespace MGI_Inventory_Management.Controllers
         // MAKE PURCHASE — Admin + Manager
         // ─────────────────────────────────────────
         [Authorize(Roles = "Admin,Manager")]
-        public IActionResult PurchaseProduct(int? categoryId = null, string? productName = null)
+        public IActionResult PurchaseProduct(int? categoryId = null, string? productName = null, decimal? unitPrice = null)
         {
             ViewBag.Categories = _context.Categories.ToList();
             ViewBag.PrefilledCategoryId = categoryId;
             ViewBag.PrefilledProductName = productName;
+            ViewBag.PrefilledUnitPrice = unitPrice;
+
+            // Auto-fetch current logged in user label
+            ViewBag.CurrentUserLabel = GetUserLabel();
             return View();
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,Manager,Supplier")]
+        [Authorize(Roles = "Admin,Manager")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> PurchaseProduct(string purchasedBy, string? shopName,
-            string? shopAddress, string? shopContact, List<int> categoryIds,
-            List<string> productNames, List<int> quantities, List<decimal> purchasePrices)
+        public async Task<IActionResult> PurchaseProduct(string purchasedBy,
+    string? shopName, string? shopAddress, string? shopContact,
+    string? supplierUserId, List<int> categoryIds,
+    List<string> productNames, List<int> quantities,
+    List<decimal> purchasePrices)
         {
             if (string.IsNullOrWhiteSpace(purchasedBy) || categoryIds == null || categoryIds.Count == 0)
             {
-                TempData["Error"] = "Please fill all fields.";
+                TempData["Error"] = "Please fill all required fields.";
                 ViewBag.Categories = _context.Categories.ToList();
+                ViewBag.CurrentUserLabel = GetUserLabel();
                 return View();
             }
 
             var currentUser = await _userManager.GetUserAsync(User);
+
+            // Supplier assigns to themselves; Admin/Manager use selected supplierUserId
+            string? assignedSupplierUserId = User.IsInRole("Supplier")
+                ? currentUser?.Id
+                : supplierUserId;
 
             var purchase = new Purchase
             {
@@ -1075,7 +1100,7 @@ namespace MGI_Inventory_Management.Controllers
                 ShopName = shopName,
                 ShopAddress = shopAddress,
                 ShopContact = shopContact,
-                SupplierUserId = currentUser?.Id
+                SupplierUserId = assignedSupplierUserId
             };
 
             for (int i = 0; i < categoryIds.Count; i++)
@@ -1085,7 +1110,8 @@ namespace MGI_Inventory_Management.Controllers
                     CategoryId = categoryIds[i],
                     ProductName = productNames[i],
                     Quantity = quantities[i],
-                    PurchasePrice = purchasePrices != null && purchasePrices.Count > i ? purchasePrices[i] : 0
+                    PurchasePrice = purchasePrices != null && purchasePrices.Count > i
+                        ? purchasePrices[i] : 0
                 });
             }
 

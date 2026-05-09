@@ -14,228 +14,215 @@
         <form asp-action="Order" method="post">
             @Html.AntiForgeryToken()
 
+            <!-- WHO IS MAKING THE ORDER — auto filled, read only -->
+            <div class="mb-3">
+                <label class="fw-bold form-label">Order Made By</label>
+                <input type="text" class="form-control"
+                       value="@ViewBag.CurrentUserLabel"
+                       readonly
+                       style="background:#f0f0f0; cursor:not-allowed;" />
+                <input type="hidden" name="orderedBy" value="@ViewBag.CurrentUserLabel" />
+            </div>
+
+            <!-- SELLER SELECTION — Admin and Manager only -->
             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
             {
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Seller</label>
-                    <select name="orderedBy" class="form-select" required id="sellerDropdown">
+                    <label class="fw-bold form-label">
+                        Assign Seller
+                        <span class="text-muted fw-normal" style="font-size:0.85rem;">
+                            (optional)
+                        </span>
+                    </label>
+                    <select name="sellerUserId" class="form-select" id="sellerDropdown">
                         <option value="">-- Select Seller --</option>
                     </select>
                 </div>
             }
-            else
-            {
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Ordered By</label>
-                    <input type="text" name="orderedBy" class="form-control"
-                           value="@User.Identity!.Name" readonly />
+
+            <!-- SHOP INFO -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Name</label>
+                    <input type="text" name="shopName" class="form-control"
+                           placeholder="e.g. ABC Store" />
                 </div>
-            }
-            <!-- ADD THESE 3 FIELDS in the Order form, after orderedBy field -->
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Name</label>
-                <input type="text" name="shopName" class="form-control"
-                       placeholder="Enter shop/customer name" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Address</label>
-                <input type="text" name="shopAddress" class="form-control"
-                       placeholder="Delivery address" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Contact</label>
-                <input type="text" name="shopContact" class="form-control"
-                       placeholder="Contact number" />
-            </div>
-            <!-- ORDER ITEMS -->
-            <div id="orderItems">
-                <div class="order-item border rounded p-3 mb-3">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Category</label>
-                            <select name="categoryIds" class="form-select category-dropdown" required>
-                                <option value="">-- Select Category --</option>
-                                @foreach (var cat in ViewBag.Categories)
-                                {
-                                    <option value="@cat.Id">@cat.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Product</label>
-                            <select name="productNames" class="form-select product-dropdown" required>
-                                <option value="">-- Select Category First --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Quantity</label>
-                            <input type="number" name="quantities" class="form-control quantity-input"
-                                   min="1" value="1" required />
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Unit Price</label>
-                            <input type="text" class="form-control unit-price" readonly value="0.00" />
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Total</label>
-                            <input type="text" class="form-control item-total" readonly value="0.00" />
-                        </div>
-                    </div>
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Address</label>
+                    <input type="text" name="shopAddress" class="form-control"
+                           placeholder="e.g. Dhaka, Bangladesh" />
+                </div>
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Contact</label>
+                    <input type="text" name="shopContact" class="form-control"
+                           placeholder="e.g. 01700000000" />
                 </div>
             </div>
 
-            <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
-                + Add Another Product
+            <hr />
+
+            <!-- ORDER ITEMS -->
+            <h5 style="color:#00aaff;" class="mb-3">Order Items</h5>
+            <div id="orderItemsContainer"></div>
+
+            <button type="button" class="btn btn-outline-primary btn-sm mt-2"
+                    onclick="addOrderRow()">
+                <i class="bi bi-plus-lg me-1"></i>Add Another Item
             </button>
 
-            <div class="d-flex justify-content-between align-items-center mt-2">
-                <h5>Grand Total: <span id="grandTotal" style="color:#00aaff;">0.00</span> BDT</h5>
-                <button type="submit" class="btn btn-primary px-4">Place Order</button>
-            </div>
+            <hr />
+
+            <button type="submit" class="btn text-white px-4"
+                    style="background:#00aaff;">
+                <i class="bi bi-send-fill me-1"></i>Place Order
+            </button>
         </form>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        // BUG FIX #3 — price / grand total not showing:
-        // The fetch was working but "Purchased stock" records have SellingPrice = 0,
-        // so the AJAX endpoint now skips zero-price records (fixed in controller).
-        // The JS below is also hardened to always recalculate totals correctly.
-                // Load sellers into dropdown (Admin/Manager only)
-        var sellerDropdown = document.getElementById('sellerDropdown');
-        if (sellerDropdown) {
-            fetch('/Admin/GetSellers')
+        var preCategory  = @(ViewBag.PrefilledCategoryId ?? 0);
+        var preProduct   = '@(Html.Raw(ViewBag.PrefilledProductName ?? ""))';
+        var preUnitPrice = @(ViewBag.PrefilledUnitPrice ?? 0);
+        var rowIndex     = 0;
+
+        // Load sellers for Admin/Manager
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+                <text>
+                    fetch('/Admin/GetSellers')
+                        .then(r => r.json())
+                        .then(sellers => {
+                            var dd = document.getElementById('sellerDropdown');
+                            sellers.forEach(s => {
+                                var opt = document.createElement('option');
+                                opt.value = s.id;
+                                opt.textContent = s.fullName || s.email;
+                                dd.appendChild(opt);
+                            });
+                        });
+                </text>
+        }
+
+        function addOrderRow(catId, prodName, unitPrice) {
+            var container = document.getElementById('orderItemsContainer');
+            var idx = rowIndex++;
+            var div = document.createElement('div');
+            div.className = 'order-row mb-3 p-3';
+            div.style = 'background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;';
+            div.id = 'orderRow_' + idx;
+            div.innerHTML = `
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Category</label>
+                        <select name="categoryIds" class="form-select form-select-sm"
+                                onchange="loadProducts(this, ${idx})" id="cat_${idx}">
+                            <option value="">-- Select --</option>
+                            @foreach (var cat in ViewBag.Categories)
+                            {
+                                    <text>
+                                        var o = document.createElement('option');
+                                        o.value = '@cat.Id';
+                                        o.textContent = '@cat.Name';
+                                        document.getElementById('cat_${idx}').appendChild(o);
+                                    </text>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Product</label>
+                        <select name="productNames" class="form-select form-select-sm"
+                                id="prod_${idx}"
+                                onchange="fetchUnitPrice(this, ${idx})">
+                            <option value="">-- Select Category First --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Unit Price</label>
+                        <input type="number" name="unitPrices" id="unitPrice_${idx}"
+                               class="form-control form-control-sm"
+                               step="0.01" min="0" readonly
+                               style="background:#f0f0f0;" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Quantity</label>
+                        <input type="number" name="quantities" class="form-control form-control-sm"
+                               min="1" value="1" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-danger w-100"
+                                onclick="removeRow('orderRow_${idx}')">
+                            <i class="bi bi-trash-fill"></i> Remove
+                        </button>
+                    </div>
+                </div>`;
+            container.appendChild(div);
+
+            // Pre-fill if values passed
+            if (catId && catId > 0) {
+                var catSel = document.getElementById('cat_' + idx);
+                catSel.value = catId;
+                loadProducts(catSel, idx, prodName, unitPrice);
+            }
+        }
+
+        function loadProducts(catSelect, idx, preSelectProduct, preSelectPrice) {
+            var categoryId = catSelect.value;
+            var prodSelect = document.getElementById('prod_' + idx);
+            prodSelect.innerHTML = '<option value="">Loading...</option>';
+
+            fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
                 .then(r => r.json())
-                .then(data => {
-                    data.forEach(function(s) {
+                .then(products => {
+                    prodSelect.innerHTML = '<option value="">-- Select Product --</option>';
+                    products.forEach(p => {
                         var opt = document.createElement('option');
-                        opt.value = s.fullName;
-                        opt.text = s.fullName + ' (' + s.email + ')';
-                        sellerDropdown.appendChild(opt);
+                        opt.value = p.productName;
+                        opt.textContent = p.productName;
+                        prodSelect.appendChild(opt);
                     });
+
+                    if (preSelectProduct) {
+                        prodSelect.value = preSelectProduct;
+                    }
+
+                    if (preSelectPrice && preSelectPrice > 0) {
+                        document.getElementById('unitPrice_' + idx).value = preSelectPrice;
+                    } else if (preSelectProduct) {
+                        fetchUnitPrice(prodSelect, idx);
+                    }
                 });
         }
-        function updateGrandTotal() {
-            var total = 0;
-            document.querySelectorAll('.item-total').forEach(function (el) {
-                total += parseFloat(el.value) || 0;
-            });
-            document.getElementById('grandTotal').textContent = total.toFixed(2);
+
+        function fetchUnitPrice(prodSelect, idx) {
+            var productName = prodSelect.value;
+            var catSelect   = document.getElementById('cat_' + idx);
+            var categoryId  = catSelect ? catSelect.value : 0;
+
+            if (!productName || !categoryId) return;
+
+            fetch('/Admin/GetSellingPrice?productName=' + encodeURIComponent(productName)
+                  + '&categoryId=' + categoryId)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('unitPrice_' + idx).value =
+                        data.price > 0 ? data.price : '';
+                });
         }
 
-        function recalcItemTotal(item) {
-            var price = parseFloat(item.querySelector('.unit-price').value) || 0;
-            var qty   = parseInt(item.querySelector('.quantity-input').value) || 0;
-            item.querySelector('.item-total').value = (price * qty).toFixed(2);
-            updateGrandTotal();
+        function removeRow(id) {
+            var el = document.getElementById(id);
+            if (el) el.remove();
         }
 
-        function attachEvents(item) {
-            var catDropdown     = item.querySelector('.category-dropdown');
-            var productDropdown = item.querySelector('.product-dropdown');
-            var quantityInput   = item.querySelector('.quantity-input');
-            var unitPriceInput  = item.querySelector('.unit-price');
-            var itemTotalInput  = item.querySelector('.item-total');
-
-            catDropdown.addEventListener('change', function () {
-                var categoryId = this.value;
-
-                // Reset price/total immediately when category changes
-                productDropdown.innerHTML = '<option value="">Loading...</option>';
-                unitPriceInput.value = '0.00';
-                itemTotalInput.value = '0.00';
-                updateGrandTotal();
-
-                if (!categoryId) {
-                    productDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
-                    return;
-                }
-
-                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (!data || data.length === 0) {
-                            productDropdown.innerHTML = '<option value="">No products available</option>';
-                        } else {
-                            productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
-                            data.forEach(function (p) {
-                                var opt = document.createElement('option');
-                                opt.value = p.productName;
-                                opt.text  = p.productName;
-                                productDropdown.appendChild(opt);
-                            });
-                        }
-                    })
-                    .catch(function () {
-                        productDropdown.innerHTML = '<option value="">Error loading products</option>';
-                    });
-            });
-
-            productDropdown.addEventListener('change', function () {
-                var productName = this.value;
-                var categoryId  = catDropdown.value;
-
-                if (!productName || !categoryId) {
-                    unitPriceInput.value = '0.00';
-                    itemTotalInput.value = '0.00';
-                    updateGrandTotal();
-                    return;
-                }
-
-                fetch('/Admin/GetSellingPrice?productName=' + encodeURIComponent(productName)
-                      + '&categoryId=' + encodeURIComponent(categoryId))
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        var price = parseFloat(data.price) || 0;
-                        unitPriceInput.value = price.toFixed(2);
-                        var qty = parseInt(quantityInput.value) || 1;
-                        itemTotalInput.value = (price * qty).toFixed(2);
-                        updateGrandTotal();
-                    })
-                    .catch(function () {
-                        unitPriceInput.value = '0.00';
-                        itemTotalInput.value = '0.00';
-                        updateGrandTotal();
-                    });
-            });
-
-            quantityInput.addEventListener('input', function () {
-                recalcItemTotal(item);
-            });
-        }
-
-        // Attach events to the first (default) row on page load
-        attachEvents(document.querySelector('.order-item'));
-
-        // Add new product row
-        document.getElementById('addItemBtn').addEventListener('click', function () {
-            var container = document.getElementById('orderItems');
-            var first     = document.querySelector('.order-item');
-            var clone     = first.cloneNode(true);
-
-            // Reset all fields in the cloned row
-            clone.querySelectorAll('select').forEach(function (s) { s.selectedIndex = 0; });
-            clone.querySelectorAll('input').forEach(function (inp) {
-                if (inp.classList.contains('quantity-input')) inp.value = '1';
-                else inp.value = '0.00';
-            });
-            clone.querySelector('.product-dropdown').innerHTML =
-                '<option value="">-- Select Category First --</option>';
-
-            // Add remove button
-            var removeBtn = document.createElement('button');
-            removeBtn.type      = 'button';
-            removeBtn.className = 'btn btn-sm btn-danger mt-2';
-            removeBtn.textContent = 'Remove';
-            removeBtn.addEventListener('click', function () {
-                clone.remove();
-                updateGrandTotal();
-            });
-            clone.appendChild(removeBtn);
-
-            container.appendChild(clone);
-            attachEvents(clone);
+        // Init: add first row with pre-filled values if coming from cart
+        window.addEventListener('load', function () {
+            addOrderRow(
+                preCategory > 0 ? preCategory : null,
+                preProduct || null,
+                preUnitPrice > 0 ? preUnitPrice : null
+            );
         });
     </script>
 }

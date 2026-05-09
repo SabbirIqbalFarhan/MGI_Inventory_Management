@@ -200,6 +200,7 @@
                                         <a asp-controller="Admin" asp-action="Order"
                                                asp-route-categoryId="@item.CategoryId"
                                                asp-route-productName="@item.ProductName"
+                                               asp-route-unitPrice="@item.SellingPrice"
                                                class="btn btn-sm w-100"
                                                style="background:#00aaff; color:#fff;
                                             font-size:0.82rem; border:none;">
@@ -212,6 +213,7 @@
                                         <a asp-controller="Admin" asp-action="PurchaseProduct"
                                                asp-route-categoryId="@item.CategoryId"
                                                asp-route-productName="@item.ProductName"
+                                               asp-route-unitPrice="@item.PurchaseRate"
                                                class="btn btn-sm w-100"
                                                style="background:#198754; color:#fff;
                                             font-size:0.82rem; border:none;">

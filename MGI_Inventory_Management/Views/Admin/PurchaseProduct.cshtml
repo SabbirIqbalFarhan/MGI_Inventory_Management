@@ -1,15 +1,10 @@
 ﻿@await Html.PartialAsync("_BackButton")
 
 <div class="container mt-4">
-
-    <div class="p-3 text-white rounded shadow mb-4" style="background:#00aaff">
-        <h4 class="mb-0">Make Purchase</h4>
+    <div class="p-3 text-white rounded shadow mb-4" style="background:#198754;">
+        <h4 class="mb-0 text-white">Make Purchase</h4>
     </div>
 
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success">@TempData["Success"]</div>
-    }
     @if (TempData["Error"] != null)
     {
         <div class="alert alert-danger">@TempData["Error"]</div>
@@ -19,242 +14,213 @@
         <form asp-action="PurchaseProduct" method="post">
             @Html.AntiForgeryToken()
 
+            <!-- WHO IS MAKING THE PURCHASE — auto filled, read only -->
+            <div class="mb-3">
+                <label class="fw-bold form-label">Purchase Made By</label>
+                <input type="text" class="form-control"
+                       value="@ViewBag.CurrentUserLabel"
+                       readonly
+                       style="background:#f0f0f0; cursor:not-allowed;" />
+                <input type="hidden" name="purchasedBy" value="@ViewBag.CurrentUserLabel" />
+            </div>
+
+            <!-- SUPPLIER SELECTION — Admin and Manager only -->
             @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
             {
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Supplier</label>
-                    <select name="purchasedBy" class="form-select" required id="supplierDropdown">
+                <div class="mb-3">
+                    <label class="fw-bold form-label">
+                        Assign Supplier
+                        <span class="text-muted fw-normal" style="font-size:0.85rem;">
+                            (optional)
+                        </span>
+                    </label>
+                    <select name="supplierUserId" class="form-select" id="supplierDropdown">
                         <option value="">-- Select Supplier --</option>
                     </select>
                 </div>
             }
-            else
-            {
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Purchased By</label>
-                    <input type="text" name="purchasedBy" class="form-control"
-                           value="@User.Identity!.Name" readonly />
+
+            <!-- SHOP INFO -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Name</label>
+                    <input type="text" name="shopName" class="form-control"
+                           placeholder="e.g. ABC Store" />
                 </div>
-            }
-
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Name</label>
-                <input type="text" name="shopName" class="form-control" placeholder="Supplier shop name" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Address</label>
-                <input type="text" name="shopAddress" class="form-control" placeholder="Shop address" />
-            </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">Shop Contact</label>
-                <input type="text" name="shopContact" class="form-control" placeholder="Contact number" />
-            </div>
-
-            <div id="purchaseItems">
-                <div class="purchase-item border rounded p-3 mb-3">
-                    <div class="row g-3">
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Category</label>
-                            <select name="categoryIds" class="form-select category-dropdown" required>
-                                <option value="">-- Select Category --</option>
-                                @foreach (var cat in ViewBag.Categories)
-                                {
-                                    <option value="@cat.Id">@cat.Name</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Product</label>
-                            <select name="productNames" class="form-select product-dropdown" required>
-                                <option value="">-- Select Category First --</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Quantity</label>
-                            <input type="number" name="quantities"
-                                   class="form-control quantity-input"
-                                   min="1" value="1" required />
-                        </div>
-
-                        <!-- EDITABLE unit price — user types purchase price -->
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Unit Price (BDT)</label>
-                            <input type="number" name="purchasePrices"
-                                   class="form-control unit-price"
-                                   step="0.01" min="0" value="0" required />
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">Total (BDT)</label>
-                            <input type="text" class="form-control item-total"
-                                   readonly value="0.00" />
-                        </div>
-
-                    </div>
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Address</label>
+                    <input type="text" name="shopAddress" class="form-control"
+                           placeholder="e.g. Dhaka, Bangladesh" />
+                </div>
+                <div class="col-md-4">
+                    <label class="fw-bold form-label">Shop Contact</label>
+                    <input type="text" name="shopContact" class="form-control"
+                           placeholder="e.g. 01700000000" />
                 </div>
             </div>
 
-            <button type="button" id="addItemBtn" class="btn btn-outline-primary mb-3">
-                + Add Another Product
+            <hr />
+
+            <!-- PURCHASE ITEMS -->
+            <h5 style="color:#198754;" class="mb-3">Purchase Items</h5>
+            <div id="purchaseItemsContainer"></div>
+
+            <button type="button" class="btn btn-outline-success btn-sm mt-2"
+                    onclick="addPurchaseRow()">
+                <i class="bi bi-plus-lg me-1"></i>Add Another Item
             </button>
 
             <hr />
 
-            <div class="d-flex justify-content-between align-items-center mt-2">
-                <h5 class="mb-0">
-                    Grand Total:
-                    <span id="grandTotal" class="fw-bold" style="color:#00aaff;">0.00</span>
-                    <span class="text-muted" style="font-size:0.9rem;">BDT</span>
-                </h5>
-                <button type="submit" class="btn btn-primary px-4">
-                    Place Purchase Request
-                </button>
-            </div>
-
+            <button type="submit" class="btn text-white px-4"
+                    style="background:#198754;">
+                <i class="bi bi-bag-check-fill me-1"></i>Submit Purchase
+            </button>
         </form>
     </div>
 </div>
 
 @section Scripts {
     <script>
-                var supplierDropdown = document.getElementById('supplierDropdown');
-        if (supplierDropdown) {
-            fetch('/Admin/GetSuppliers')
+        var preCategory  = @(ViewBag.PrefilledCategoryId ?? 0);
+        var preProduct   = '@(Html.Raw(ViewBag.PrefilledProductName ?? ""))';
+        var preUnitPrice = @(ViewBag.PrefilledUnitPrice ?? 0);
+        var rowIndex     = 0;
+
+        // Load suppliers for Admin/Manager
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+        {
+                <text>
+                    fetch('/Admin/GetSuppliers')
+                        .then(r => r.json())
+                        .then(suppliers => {
+                            var dd = document.getElementById('supplierDropdown');
+                            suppliers.forEach(s => {
+                                var opt = document.createElement('option');
+                                opt.value = s.id;
+                                opt.textContent = s.fullName || s.email;
+                                dd.appendChild(opt);
+                            });
+                        });
+                </text>
+        }
+
+        function addPurchaseRow(catId, prodName, unitPrice) {
+            var container = document.getElementById('purchaseItemsContainer');
+            var idx = rowIndex++;
+            var div = document.createElement('div');
+            div.className = 'purchase-row mb-3 p-3';
+            div.style = 'background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6;';
+            div.id = 'purchaseRow_' + idx;
+            div.innerHTML = `
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Category</label>
+                        <select name="categoryIds" class="form-select form-select-sm"
+                                onchange="loadPurchaseProducts(this, ${idx})"
+                                id="pcat_${idx}">
+                            <option value="">-- Select --</option>
+                            @foreach (var cat in ViewBag.Categories)
+                            {
+                                    <text>
+                                        var o = document.createElement('option');
+                                        o.value = '@cat.Id';
+                                        o.textContent = '@cat.Name';
+                                        document.getElementById('pcat_${idx}').appendChild(o);
+                                    </text>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Product</label>
+                        <select name="productNames" class="form-select form-select-sm"
+                                id="pprod_${idx}"
+                                onchange="fetchPurchaseRate(this, ${idx})">
+                            <option value="">-- Select Category First --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Purchase Rate</label>
+                        <input type="number" name="purchasePrices" id="punitPrice_${idx}"
+                               class="form-control form-control-sm"
+                               step="0.01" min="0" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold" style="font-size:0.85rem;">Quantity</label>
+                        <input type="number" name="quantities" class="form-control form-control-sm"
+                               min="1" value="1" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-sm btn-danger w-100"
+                                onclick="removePurchaseRow('purchaseRow_${idx}')">
+                            <i class="bi bi-trash-fill"></i> Remove
+                        </button>
+                    </div>
+                </div>`;
+            container.appendChild(div);
+
+            if (catId && catId > 0) {
+                var catSel = document.getElementById('pcat_' + idx);
+                catSel.value = catId;
+                loadPurchaseProducts(catSel, idx, prodName, unitPrice);
+            }
+        }
+
+        function loadPurchaseProducts(catSelect, idx, preSelectProduct, preSelectPrice) {
+            var categoryId = catSelect.value;
+            var prodSelect = document.getElementById('pprod_' + idx);
+            prodSelect.innerHTML = '<option value="">Loading...</option>';
+
+            fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
                 .then(r => r.json())
-                .then(data => {
-                    data.forEach(function(s) {
+                .then(products => {
+                    prodSelect.innerHTML = '<option value="">-- Select Product --</option>';
+                    products.forEach(p => {
                         var opt = document.createElement('option');
-                        opt.value = s.fullName;
-                        opt.text = s.fullName + ' (' + s.email + ')';
-                        supplierDropdown.appendChild(opt);
+                        opt.value = p.productName;
+                        opt.textContent = p.productName;
+                        prodSelect.appendChild(opt);
                     });
+
+                    if (preSelectProduct) {
+                        prodSelect.value = preSelectProduct;
+                    }
+
+                    if (preSelectPrice && preSelectPrice > 0) {
+                        document.getElementById('punitPrice_' + idx).value = preSelectPrice;
+                    } else if (preSelectProduct) {
+                        fetchPurchaseRate(prodSelect, idx);
+                    }
                 });
         }
-        function updateGrandTotal() {
-            var total = 0;
-            document.querySelectorAll('.item-total').forEach(function (el) {
-                total += parseFloat(el.value) || 0;
-            });
-            document.getElementById('grandTotal').textContent = total.toFixed(2);
+
+        function fetchPurchaseRate(prodSelect, idx) {
+            var productName = prodSelect.value;
+            var catSelect   = document.getElementById('pcat_' + idx);
+            var categoryId  = catSelect ? catSelect.value : 0;
+
+            if (!productName || !categoryId) return;
+
+            fetch('/Admin/GetPurchaseRate?productName=' + encodeURIComponent(productName)
+                  + '&categoryId=' + categoryId)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('punitPrice_' + idx).value =
+                        data.price > 0 ? data.price : '';
+                });
         }
 
-        function attachEvents(item) {
-            var catDropdown     = item.querySelector('.category-dropdown');
-            var productDropdown = item.querySelector('.product-dropdown');
-            var quantityInput   = item.querySelector('.quantity-input');
-            var unitPriceInput  = item.querySelector('.unit-price');
-            var itemTotalInput  = item.querySelector('.item-total');
-
-            // Recalculate row total whenever price or qty changes
-            function recalcTotal() {
-                var price = parseFloat(unitPriceInput.value) || 0;
-                var qty   = parseInt(quantityInput.value) || 0;
-                itemTotalInput.value = (price * qty).toFixed(2);
-                updateGrandTotal();
-            }
-
-            // Category change → load products
-            catDropdown.addEventListener('change', function () {
-                var categoryId = this.value;
-
-                productDropdown.innerHTML = '<option value="">Loading...</option>';
-                unitPriceInput.value = '0';
-                itemTotalInput.value = '0.00';
-                updateGrandTotal();
-
-                if (!categoryId) {
-                    productDropdown.innerHTML = '<option value="">-- Select Category First --</option>';
-                    return;
-                }
-
-                fetch('/Admin/GetProductsByCategory?categoryId=' + categoryId)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.length === 0) {
-                            productDropdown.innerHTML = '<option value="">No products found</option>';
-                        } else {
-                            productDropdown.innerHTML = '<option value="">-- Select Product --</option>';
-                            data.forEach(function (p) {
-                                var opt = document.createElement('option');
-                                opt.value = p.productName;
-                                opt.text  = p.productName;
-                                productDropdown.appendChild(opt);
-                            });
-                        }
-                    })
-                    .catch(() => {
-                        productDropdown.innerHTML = '<option value="">Error loading</option>';
-                    });
-            });
-
-            // Product change → suggest last purchase rate (user can override)
-            productDropdown.addEventListener('change', function () {
-                var productName = this.value;
-                var categoryId  = catDropdown.value;
-
-                if (!productName || !categoryId) {
-                    unitPriceInput.value = '0';
-                    itemTotalInput.value = '0.00';
-                    updateGrandTotal();
-                    return;
-                }
-
-                // Fetch last known purchase rate as a suggestion
-                fetch('/Admin/GetPurchaseRate?productName='
-                      + encodeURIComponent(productName)
-                      + '&categoryId=' + categoryId)
-                    .then(r => r.json())
-                    .then(data => {
-                        var price = parseFloat(data.price) || 0;
-                        unitPriceInput.value = price;
-                        recalcTotal();
-                    })
-                    .catch(() => {
-                        unitPriceInput.value = '0';
-                        recalcTotal();
-                    });
-            });
-
-            // Price or quantity change → recalc
-            unitPriceInput.addEventListener('input', recalcTotal);
-            quantityInput.addEventListener('input', recalcTotal);
+        function removePurchaseRow(id) {
+            var el = document.getElementById(id);
+            if (el) el.remove();
         }
 
-        // Init first row
-        attachEvents(document.querySelector('.purchase-item'));
-
-        // Add new row
-        document.getElementById('addItemBtn').addEventListener('click', function () {
-            var container = document.getElementById('purchaseItems');
-            var first     = document.querySelector('.purchase-item');
-            var clone     = first.cloneNode(true);
-
-            clone.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
-            clone.querySelectorAll('input').forEach(function (inp) {
-                if (inp.classList.contains('quantity-input')) inp.value = '1';
-                else if (inp.classList.contains('unit-price')) inp.value = '0';
-                else inp.value = '0.00';
-            });
-            clone.querySelector('.product-dropdown').innerHTML =
-                '<option value="">-- Select Category First --</option>';
-
-            var removeBtn = document.createElement('button');
-            removeBtn.type        = 'button';
-            removeBtn.className   = 'btn btn-sm btn-danger mt-2';
-            removeBtn.textContent = '✕ Remove';
-            removeBtn.addEventListener('click', function () {
-                clone.remove();
-                updateGrandTotal();
-            });
-            clone.appendChild(removeBtn);
-
-            container.appendChild(clone);
-            attachEvents(clone);
+        window.addEventListener('load', function () {
+            addPurchaseRow(
+                preCategory > 0 ? preCategory : null,
+                preProduct || null,
+                preUnitPrice > 0 ? preUnitPrice : null
+            );
         });
-
     </script>
-
 }
