@@ -113,7 +113,7 @@
     
 
     <!-- PURCHASES -->
-    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supllier"))
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
     {
         <div class="mb-3 d-flex align-items-center gap-2">
         <i class="bi bi-truck text-warning"></i>
@@ -121,23 +121,26 @@
     </div>
 
     <div class="row g-3 mb-4">
-
-        <div class="col-lg-4 col-md-6">
-            <a asp-controller="Admin" asp-action="PurchaseProduct" class="text-decoration-none">
-                <div class="dashboard-card border-warning">
-                    <i class="bi bi-building fs-3 text-warning"></i>
-                    <h6 class="fw-bold mt-2">Make Purchase</h6>
-                    <small class="text-muted">Buy from supplier</small>
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+            {
+                <div class="col-lg-4 col-md-6">
+                    <a asp-controller="Admin" asp-action="PurchaseProduct" class="text-decoration-none">
+                        <div class="dashboard-card border-warning">
+                            <i class="bi bi-building fs-3 text-warning"></i>
+                            <h6 class="fw-bold mt-2">Make Purchase</h6>
+                            <small class="text-muted">Buy from supplier</small>
+                        </div>
+                    </a>
                 </div>
-            </a>
-        </div>
+            }
+            
 
         <div class="col-lg-4 col-md-6">
             <a asp-controller="Admin" asp-action="PurchaseRequest" class="text-decoration-none">
                 <div class="dashboard-card border-warning">
                     <i class="bi bi-inbox fs-3 text-warning"></i>
                     <h6 class="fw-bold mt-2">Purchase Requests</h6>
-                    <small class="text-muted">Approve supplier requests</small>
+                    <small class="text-muted">Approve purchase requests</small>
                 </div>
             </a>
         </div>
@@ -153,6 +156,9 @@
         </div>
     </div>
     }
+    
+    
+    <!-- USERS -->
     
      @if (User.IsInRole("Admin"))
     {
@@ -185,10 +191,6 @@
 
     </div>
     }
-    <!-- USERS -->
-    
-
-</div>
 
 <!-- CUSTOM CSS -->
 <style>
