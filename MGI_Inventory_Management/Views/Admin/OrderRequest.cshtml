@@ -31,23 +31,28 @@
         @foreach (var order in ViewBag.Orders)
         {
             string status = order.Status;
-            string badgeCss = status == "Pending" ? "background:#ffc107;color:#000;" :
-                              status == "Approved" ? "background:#0d6efd;color:#fff;" :
-                                                      "background:#198754;color:#fff;";
+            string badgeCss = status == "Pending"
+                ? "background:#ffc107;color:#000;"
+                : status == "Approved"
+                    ? "background:#0d6efd;color:#fff;"
+                    : "background:#198754;color:#fff;";
+
+            // Format: first 4 digits = order id, next 2 = month, last 4 = year
+            DateTime orderDate = (DateTime)order.OrderDate;
+            string orderNumber = $"{(int)order.Id:D4}{orderDate.Month:D2}{orderDate.Year}";
 
             var orderLogs = allLogs.Where(l => l.OrderId == (int)order.Id).ToList();
 
             <div class="card shadow mb-4">
 
-                <!-- HEADER: status only -->
                 <div class="card-header d-flex justify-content-between align-items-center"
                      style="background:#f0f8ff;">
                     <div style="font-size:0.95rem;">
-                        <strong>Order #@order.Id</strong>
+                        <strong>Order #@orderNumber</strong>
                         &nbsp;|&nbsp; @order.OrderedBy
                         &nbsp;|&nbsp;
                         <small class="text-muted">
-                            @order.OrderDate.ToString("dd MMM yyyy hh:mm tt")
+                            @orderDate.ToString("dd MMM yyyy hh:mm tt")
                         </small>
                     </div>
                     <span style="@badgeCss padding:4px 14px;
@@ -57,7 +62,6 @@
                     </span>
                 </div>
 
-                <!-- ITEMS TABLE -->
                 <div class="card-body pb-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm mb-2">
@@ -93,14 +97,14 @@
                                     <td colspan="5" class="text-end fw-bold">Grand Total:</td>
                                     <td class="fw-bold" style="color:#00aaff;">
                                         ৳ @((order.Items as IEnumerable<OrderItem>)
-                                                                                      .Sum(i => i.Quantity * i.SellingPrice).ToString("F2"))
+                                                                                    .Sum(i => i.Quantity * i.SellingPrice).ToString("F2"))
                                     </td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
 
-                    <!-- ACTION BUTTONS (bottom of table) -->
+                    <!-- ACTION BUTTONS -->
                     <div class="d-flex gap-2 flex-wrap mt-2">
 
                         @if (status == "Pending")
@@ -133,27 +137,38 @@
 
                         @if (status == "Approved")
                         {
-                            <form asp-action="DeliverOrder" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@order.Id" />
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-truck me-1"></i>Mark as Delivered
-                                </button>
-                            </form>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Seller"))
+                            {
+                                <form asp-action="DeliverOrder" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@order.Id" />
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-truck me-1"></i>Mark as Delivered
+                                    </button>
+                                </form>
+                            }
                         }
 
                         @if (status == "Delivered")
                         {
                             <span class="text-success fw-bold">
-                                <i class="bi bi-check-circle-fill me-1"></i>Delivered & Stock Updated
+                                <i class="bi bi-check-circle-fill me-1"></i>
+                                Delivered & Stock Updated
                             </span>
                         }
+
+                        <!-- Download Invoice -->
+                        <a asp-action="DownloadOrderInvoice" asp-route-id="@order.Id"
+                               class="btn btn-sm btn-outline-secondary ms-auto">
+                            <i class="bi bi-download me-1"></i>Invoice
+                        </a>
                     </div>
 
-                    <!-- ACTIVITY LOG -->
-                    @if (orderLogs.Any())
+                    <!-- ACTIVITY LOG — Admin only -->
+                    @if (User.IsInRole("Admin") && orderLogs.Any())
                     {
-                        <div style="margin-top:16px; border-top:1px solid #e0e0e0; padding-top:12px;">
+                        <div style="margin-top:16px; border-top:1px solid #e0e0e0;
+                            padding-top:12px;">
                             <div style="font-size:0.8rem; font-weight:700;
                                 color:#888; margin-bottom:8px;
                                 text-transform:uppercase; letter-spacing:0.05em;">
@@ -176,55 +191,58 @@
                                         log.Action == "Deleted" ? "bg-danger" :
                                         log.Action == "Delivered" ? "bg-primary" : "bg-light";
 
-                                    <div style="display:flex; align-items:center; gap:10px;
-                                        font-size:0.82rem;">
-                                        <span style="width:10px; height:10px; border-radius:50%;
-                                        background:@dotColor; flex-shrink:0;"></span>
+                                    <div style="display:flex; align-items:center;
+                                        gap:10px; font-size:0.82rem;">
+                                        <span style="width:10px; height:10px;
+                                        border-radius:50%;
+                                        background:@dotColor;
+                                        flex-shrink:0;"></span>
                                         <span class="badge @actionBadge"
                                               style="font-size:0.75rem; min-width:68px;">
                                             @log.Action
                                         </span>
                                         <span style="color:#555;">
-                                            by
-                                            <span style="font-weight:600; color:#1a1a1a;">
-                                                @log.PerformedBy
-                                            </span>
-                                        </span>
-                                        <span style="color:#aaa; margin-left:auto;">
-                                            @log.PerformedAt.ToString("dd MMM yyyy hh:mm tt")
-                                        </span>
-                                    </div>
-                                }
-                            </div>
+                                            by <strong style="color:#1a1a1a;">
+                                            @log.PerformedBy
+                                        </strong>
+                                    </span>
+                                    <span style="color:#aaa; margin-left:auto;">
+                                        @log.PerformedAt.ToString("dd MMM yyyy hh:mm tt")
+                                    </span>
+                                </div>
+                            }
                         </div>
-                    }
-                </div>
+                    </div>
+                }
             </div>
-        }
-
-        <!-- PAGINATION -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-            @if (ViewBag.CurrentPage > 1)
-            {
-                <a href="@Url.Action("OrderRequest", new { page = ViewBag.CurrentPage - 1 })"
-                   class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
-            }
-            @for (int i = 1; i <= ViewBag.TotalPages; i++)
-            {
-                <a href="@Url.Action("OrderRequest", new { page = i })"
-                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-primary" : "btn-outline-primary")">
-                    @i
-                </a>
-            }
-            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-            {
-                <a href="@Url.Action("OrderRequest", new { page = ViewBag.CurrentPage + 1 })"
-                   class="btn btn-sm btn-outline-primary">Next &#8594;</a>
-            }
         </div>
     }
-    else
-    {
-        <div class="alert alert-info">No order requests yet.</div>
+
+    <!-- PAGINATION -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+        @if (ViewBag.CurrentPage > 1)
+        {
+            <a asp-action="OrderRequest"
+               asp-route-page="@(ViewBag.CurrentPage - 1)"
+               class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+        }
+        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+        {
+            <a asp-action="OrderRequest"
+               asp-route-page="@i"
+               class="btn btn-sm @(i == (int)ViewBag.CurrentPage
+                                                      ? "btn-primary" : "btn-outline-primary")">@i</a>
     }
+    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+    {
+        <a asp-action="OrderRequest"
+           asp-route-page="@(ViewBag.CurrentPage + 1)"
+           class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+    }
+</div>
+    }
+    else
+{
+    <div class="alert alert-info">No order requests yet.</div>
+}
 </div>

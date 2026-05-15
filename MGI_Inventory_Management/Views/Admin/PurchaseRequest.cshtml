@@ -15,18 +15,18 @@
         <div class="alert alert-danger">@TempData["Error"]</div>
     }
 
-    <div class="text-end mb-3">
-        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-        {
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <div class="text-end mb-3">
             <a asp-action="PurchaseProduct" class="btn btn-success">
                 <i class="bi bi-plus-lg me-1"></i>Make New Purchase
             </a>
-        }
-    </div>
+        </div>
+    }
 
     @{
-        var allPurchaseLogs = ViewBag.ActivityLogs as List<PurchaseActivityLog>
-                              ?? new List<PurchaseActivityLog>();
+        var allLogs = ViewBag.ActivityLogs as List<PurchaseActivityLog>
+                      ?? new List<PurchaseActivityLog>();
     }
 
     @if (ViewBag.Purchases != null && ((IEnumerable<dynamic>)ViewBag.Purchases).Any())
@@ -34,24 +34,28 @@
         @foreach (var purchase in ViewBag.Purchases)
         {
             string status = purchase.Status;
-            string badgeCss = status == "Pending" ? "background:#ffc107;color:#000;" :
-                              status == "Approved" ? "background:#0d6efd;color:#fff;" :
-                                                      "background:#198754;color:#fff;";
+            string badgeCss = status == "Pending"
+                ? "background:#ffc107;color:#000;"
+                : status == "Approved"
+                    ? "background:#0d6efd;color:#fff;"
+                    : "background:#198754;color:#fff;";
 
-            var purchaseLogs = allPurchaseLogs
+            DateTime purchaseDate = (DateTime)purchase.PurchaseDate;
+            string purchaseNumber = $"{(int)purchase.Id:D4}{purchaseDate.Month:D2}{purchaseDate.Year}";
+
+            var purchaseLogs = allLogs
                 .Where(l => l.PurchaseId == (int)purchase.Id).ToList();
 
             <div class="card shadow mb-4">
 
-                <!-- HEADER: status only -->
                 <div class="card-header d-flex justify-content-between align-items-center"
                      style="background:#f0fff4;">
                     <div style="font-size:0.95rem;">
-                        <strong>Purchase #@purchase.Id</strong>
+                        <strong>Purchase #@purchaseNumber</strong>
                         &nbsp;|&nbsp; @purchase.PurchasedBy
                         &nbsp;|&nbsp;
                         <small class="text-muted">
-                            @purchase.PurchaseDate.ToString("dd MMM yyyy hh:mm tt")
+                            @purchaseDate.ToString("dd MMM yyyy hh:mm tt")
                         </small>
                     </div>
                     <span style="@badgeCss padding:4px 14px;
@@ -61,7 +65,6 @@
                     </span>
                 </div>
 
-                <!-- ITEMS TABLE -->
                 <div class="card-body pb-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm mb-2">
@@ -97,7 +100,7 @@
                                     <td colspan="5" class="text-end fw-bold">Grand Total:</td>
                                     <td class="fw-bold" style="color:#198754;">
                                         ৳ @((purchase.Items as IEnumerable<PurchaseItem>)
-                                                                                      .Sum(i => i.Quantity * i.PurchasePrice).ToString("F2"))
+                                                                                    .Sum(i => i.Quantity * i.PurchasePrice).ToString("F2"))
                                     </td>
                                 </tr>
                             </tfoot>
@@ -109,8 +112,7 @@
 
                         @if (status == "Pending")
                         {
-                            @* Approve: Admin + Supplier only, NOT Manager *@
-                            @if (User.IsInRole("Admin") || User.IsInRole("Supplier"))
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                             {
                                 <form asp-action="ApprovePurchase" method="post">
                                     @Html.AntiForgeryToken()
@@ -119,15 +121,6 @@
                                         <i class="bi bi-check-lg me-1"></i>Approve
                                     </button>
                                 </form>
-                            }
-
-                            @* Edit + Delete: Admin, Manager, Supplier while Pending *@
-                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
-                            {
-                                <a asp-action="EditPurchase" asp-route-id="@purchase.Id"
-                                       class="btn btn-sm btn-warning">
-                                    <i class="bi bi-pencil-fill me-1"></i>Edit
-                                </a>
 
                                 <form asp-action="DeletePurchase" method="post"
                                       onsubmit="return confirm('Delete this purchase?')">
@@ -138,31 +131,46 @@
                                     </button>
                                 </form>
                             }
+
+                            <a asp-action="EditPurchase" asp-route-id="@purchase.Id"
+                                   class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil-fill me-1"></i>Edit
+                            </a>
                         }
 
                         @if (status == "Approved")
                         {
-                            <form asp-action="DeliverPurchase" method="post">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="id" value="@purchase.Id" />
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-truck me-1"></i>Mark as Delivered
-                                </button>
-                            </form>
+                            @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("Supplier"))
+                            {
+                                <form asp-action="DeliverPurchase" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@purchase.Id" />
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-truck me-1"></i>Mark as Delivered
+                                    </button>
+                                </form>
+                            }
                         }
 
                         @if (status == "Delivered")
                         {
                             <span class="text-success fw-bold">
-                                <i class="bi bi-check-circle-fill me-1"></i>Delivered & Stock Updated
+                                <i class="bi bi-check-circle-fill me-1"></i>
+                                Delivered & Stock Updated
                             </span>
                         }
+
+                        <a asp-action="DownloadPurchaseInvoice" asp-route-id="@purchase.Id"
+                               class="btn btn-sm btn-outline-secondary ms-auto">
+                            <i class="bi bi-download me-1"></i>Invoice
+                        </a>
                     </div>
 
-                    <!-- ACTIVITY LOG -->
-                    @if (purchaseLogs.Any())
+                    <!-- ACTIVITY LOG — Admin only -->
+                    @if (User.IsInRole("Admin") && purchaseLogs.Any())
                     {
-                        <div style="margin-top:16px; border-top:1px solid #e0e0e0; padding-top:12px;">
+                        <div style="margin-top:16px; border-top:1px solid #e0e0e0;
+                            padding-top:12px;">
                             <div style="font-size:0.8rem; font-weight:700;
                                 color:#888; margin-bottom:8px;
                                 text-transform:uppercase; letter-spacing:0.05em;">
@@ -185,55 +193,58 @@
                                         log.Action == "Deleted" ? "bg-danger" :
                                         log.Action == "Delivered" ? "bg-primary" : "bg-light";
 
-                                    <div style="display:flex; align-items:center; gap:10px;
-                                        font-size:0.82rem;">
-                                        <span style="width:10px; height:10px; border-radius:50%;
-                                        background:@dotColor; flex-shrink:0;"></span>
+                                    <div style="display:flex; align-items:center;
+                                        gap:10px; font-size:0.82rem;">
+                                        <span style="width:10px; height:10px;
+                                        border-radius:50%;
+                                        background:@dotColor;
+                                        flex-shrink:0;"></span>
                                         <span class="badge @actionBadge"
                                               style="font-size:0.75rem; min-width:68px;">
                                             @log.Action
                                         </span>
                                         <span style="color:#555;">
-                                            by
-                                            <span style="font-weight:600; color:#1a1a1a;">
-                                                @log.PerformedBy
-                                            </span>
-                                        </span>
-                                        <span style="color:#aaa; margin-left:auto;">
-                                            @log.PerformedAt.ToString("dd MMM yyyy hh:mm tt")
-                                        </span>
-                                    </div>
-                                }
-                            </div>
+                                            by <strong style="color:#1a1a1a;">
+                                            @log.PerformedBy
+                                        </strong>
+                                    </span>
+                                    <span style="color:#aaa; margin-left:auto;">
+                                        @log.PerformedAt.ToString("dd MMM yyyy hh:mm tt")
+                                    </span>
+                                </div>
+                            }
                         </div>
-                    }
-                </div>
+                    </div>
+                }
             </div>
-        }
-
-        <!-- PAGINATION -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-            @if (ViewBag.CurrentPage > 1)
-            {
-                <a href="@Url.Action("PurchaseRequest", new { page = ViewBag.CurrentPage - 1 })"
-                   class="btn btn-sm btn-outline-success">&#8592; Prev</a>
-            }
-            @for (int i = 1; i <= ViewBag.TotalPages; i++)
-            {
-                <a href="@Url.Action("PurchaseRequest", new { page = i })"
-                       class="btn btn-sm @(i == (int)ViewBag.CurrentPage ? "btn-success" : "btn-outline-success")">
-                    @i
-                </a>
-            }
-            @if (ViewBag.CurrentPage < ViewBag.TotalPages)
-            {
-                <a href="@Url.Action("PurchaseRequest", new { page = ViewBag.CurrentPage + 1 })"
-                   class="btn btn-sm btn-outline-success">Next &#8594;</a>
-            }
         </div>
     }
-    else
-    {
-        <div class="alert alert-info">No purchase requests yet.</div>
+
+    <!-- PAGINATION -->
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+        @if (ViewBag.CurrentPage > 1)
+        {
+            <a asp-action="PurchaseRequest"
+               asp-route-page="@(ViewBag.CurrentPage - 1)"
+               class="btn btn-sm btn-outline-primary">&#8592; Prev</a>
+        }
+        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+        {
+            <a asp-action="PurchaseRequest"
+               asp-route-page="@i"
+               class="btn btn-sm @(i == (int)ViewBag.CurrentPage
+                                                      ? "btn-primary" : "btn-outline-primary")">@i</a>
     }
+    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+    {
+        <a asp-action="PurchaseRequest"
+           asp-route-page="@(ViewBag.CurrentPage + 1)"
+           class="btn btn-sm btn-outline-primary">Next &#8594;</a>
+    }
+</div>
+    }
+    else
+{
+    <div class="alert alert-info">No purchase requests yet.</div>
+}
 </div>

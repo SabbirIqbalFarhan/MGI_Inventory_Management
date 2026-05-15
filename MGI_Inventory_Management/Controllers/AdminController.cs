@@ -776,10 +776,32 @@ namespace MGI_Inventory_Management.Controllers
             {
                 foreach (var item in order.Items)
                 {
-                    var netStock = _context.Products
-                        .Where(p => p.Name == item.ProductName && p.CategoryId == item.CategoryId)
-                        .Sum(p => (int?)p.Quantity) ?? 0;
+                    // Use same logic as ViewProduct — only count records after last deletion
+                    var allRecords = _context.Products
+                        .Where(p => p.Name == item.ProductName
+                                 && p.CategoryId == item.CategoryId)
+                        .OrderByDescending(p => p.PublishedDate)
+                        .ToList();
 
+                    var lastDeletion = allRecords
+                        .FirstOrDefault(x => x.Description.StartsWith("Stock removed by"));
+
+                    int netStock;
+                    if (lastDeletion != null)
+                    {
+                        netStock = allRecords
+                            .Where(x => x.PublishedDate > lastDeletion.PublishedDate
+                                     && !x.Description.StartsWith("Stock removed by"))
+                            .Sum(x => (int?)x.Quantity) ?? 0;
+                    }
+                    else
+                    {
+                        netStock = allRecords
+                            .Where(x => !x.Description.StartsWith("Stock removed by"))
+                            .Sum(x => (int?)x.Quantity) ?? 0;
+                    }
+
+                    // Reserved stock from other approved orders
                     var reservedStock = _context.Orders
                         .Include(o => o.Items)
                         .Where(o => o.Status == "Approved" && o.Id != id)
@@ -788,10 +810,13 @@ namespace MGI_Inventory_Management.Controllers
                                  && i.CategoryId == item.CategoryId)
                         .Sum(i => (int?)i.Quantity) ?? 0;
 
-                    if (netStock - reservedStock < item.Quantity)
+                    int availableStock = netStock - reservedStock;
+
+                    if (availableStock < item.Quantity)
                     {
                         TempData["OrderError"] =
-                            $"Not enough stock for '{item.ProductName}'!";
+                            $"Not enough stock for '{item.ProductName}'. " +
+                            $"Available: {availableStock} units, Required: {item.Quantity} units.";
                         return RedirectToAction("OrderRequest");
                     }
                 }
@@ -807,7 +832,10 @@ namespace MGI_Inventory_Management.Controllers
                 _context.SaveChanges();
                 TempData["OrderSuccess"] = "Order approved!";
             }
-            else TempData["OrderError"] = "Only pending orders can be approved!";
+            else
+            {
+                TempData["OrderError"] = "Only pending orders can be approved!";
+            }
 
             return RedirectToAction("OrderRequest");
         }
@@ -1451,6 +1479,16 @@ namespace MGI_Inventory_Management.Controllers
             return string.IsNullOrEmpty(roleName)
                 ? fullName
                 : $"{fullName} ({roleName})";
+
+        }
+        private string FormatOrderNumber(int orderId, DateTime orderDate)
+        {
+            return $"{orderId:D4}{orderDate.Month:D2}{orderDate.Year}";
+        }
+
+        private string FormatPurchaseNumber(int purchaseId, DateTime purchaseDate)
+        {
+            return $"{purchaseId:D4}{purchaseDate.Month:D2}{purchaseDate.Year}";
         }
     }
 }
